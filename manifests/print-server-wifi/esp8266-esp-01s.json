@@ -1,0 +1,24 @@
+{
+  "name": "Wi-Fi Print Server (Arsin Print Server) - ESP-01S module",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP8266",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp8266-esp-01s/wifi/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp8266-esp-01s/wifi/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp8266-esp-01s/wifi/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

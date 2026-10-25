@@ -1,0 +1,24 @@
+{
+  "name": "Wi-Fi Print Server (Arsin Print Server) - Wemos D1 mini (ESP-12F)",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP8266",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp8266-d1-mini/wifi/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp8266-d1-mini/wifi/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp8266-d1-mini/wifi/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

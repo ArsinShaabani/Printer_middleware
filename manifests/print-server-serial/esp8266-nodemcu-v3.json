@@ -1,0 +1,24 @@
+{
+  "name": "Serial / COM Port Bridge - NodeMCU v3 / ESP-12E (LoLin)",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP8266",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp8266-nodemcu-v3/serial/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp8266-nodemcu-v3/serial/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp8266-nodemcu-v3/serial/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

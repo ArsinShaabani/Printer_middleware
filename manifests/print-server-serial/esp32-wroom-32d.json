@@ -1,0 +1,28 @@
+{
+  "name": "Serial / COM Port Bridge - ESP32-WROOM-32D / 32U module",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp32-wroom-32d/serial/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp32-wroom-32d/serial/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp32-wroom-32d/serial/boot_app0.bin",
+          "offset": 57344
+        },
+        {
+          "path": "../../firmware-bin/esp32-wroom-32d/serial/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

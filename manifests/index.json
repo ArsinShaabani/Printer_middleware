@@ -1,0 +1,412 @@
+{
+  "generated": "2026-10-25T12:39:34.470Z",
+  "version": 1,
+  "builds": [
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-devkit-v1",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-devkit-v1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-wroom-32d",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-wroom-32d.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-wrover-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32wrover",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-wrover-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-s3-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-s3-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-s3-zero",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-s3-zero.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-c3-devkitm-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-C3",
+      "fqbn": "esp32:esp32:esp32c3",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-c3-devkitm-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-c6-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-C6",
+      "fqbn": "esp32:esp32:esp32c6",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-c6-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp32-s2-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32-S2",
+      "fqbn": "esp32:esp32:esp32s2",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp32-s2-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp8266-nodemcu-v3",
+      "family": "esp8266",
+      "chipFamily": "ESP8266",
+      "fqbn": "esp8266:esp8266:nodemcuv2",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp8266-nodemcu-v3.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp8266-d1-mini",
+      "family": "esp8266",
+      "chipFamily": "ESP8266",
+      "fqbn": "esp8266:esp8266:d1_mini",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp8266-d1-mini.json",
+      "available": false
+    },
+    {
+      "app": "print-server-wifi",
+      "board": "esp8266-esp-01s",
+      "family": "esp8266",
+      "chipFamily": "ESP8266",
+      "fqbn": "esp8266:esp8266:generic",
+      "variant": "wifi",
+      "manifest": "manifests/print-server-wifi/esp8266-esp-01s.json",
+      "available": false
+    },
+    {
+      "app": "print-server-bt-spp",
+      "board": "esp32-devkit-v1",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "bt",
+      "manifest": "manifests/print-server-bt-spp/esp32-devkit-v1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-bt-spp",
+      "board": "esp32-wroom-32d",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "bt",
+      "manifest": "manifests/print-server-bt-spp/esp32-wroom-32d.json",
+      "available": false
+    },
+    {
+      "app": "print-server-bt-spp",
+      "board": "esp32-wrover-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32wrover",
+      "variant": "bt",
+      "manifest": "manifests/print-server-bt-spp/esp32-wrover-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-devkit-v1",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-devkit-v1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-wroom-32d",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-wroom-32d.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-wrover-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32wrover",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-wrover-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-s3-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-s3-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-s3-zero",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-s3-zero.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-c3-devkitm-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-C3",
+      "fqbn": "esp32:esp32:esp32c3",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-c3-devkitm-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-ble",
+      "board": "esp32-c6-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-C6",
+      "fqbn": "esp32:esp32:esp32c6",
+      "variant": "ble",
+      "manifest": "manifests/print-server-ble/esp32-c6-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-usbhost",
+      "board": "esp32-s3-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "usbhost",
+      "manifest": "manifests/print-server-usbhost/esp32-s3-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-usbhost",
+      "board": "esp32-s3-zero",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "usbhost",
+      "manifest": "manifests/print-server-usbhost/esp32-s3-zero.json",
+      "available": false
+    },
+    {
+      "app": "print-server-usbhost",
+      "board": "esp32-s2-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32-S2",
+      "fqbn": "esp32:esp32:esp32s2",
+      "variant": "usbhost",
+      "manifest": "manifests/print-server-usbhost/esp32-s2-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-devkit-v1",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-devkit-v1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-wroom-32d",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-wroom-32d.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-wrover-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32",
+      "fqbn": "esp32:esp32:esp32wrover",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-wrover-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-s3-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-s3-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-s3-zero",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-s3-zero.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-c3-devkitm-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-C3",
+      "fqbn": "esp32:esp32:esp32c3",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-c3-devkitm-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-c6-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-C6",
+      "fqbn": "esp32:esp32:esp32c6",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-c6-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp32-s2-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32-S2",
+      "fqbn": "esp32:esp32:esp32s2",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp32-s2-devkit.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp8266-nodemcu-v3",
+      "family": "esp8266",
+      "chipFamily": "ESP8266",
+      "fqbn": "esp8266:esp8266:nodemcuv2",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp8266-nodemcu-v3.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp8266-d1-mini",
+      "family": "esp8266",
+      "chipFamily": "ESP8266",
+      "fqbn": "esp8266:esp8266:d1_mini",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp8266-d1-mini.json",
+      "available": false
+    },
+    {
+      "app": "print-server-serial",
+      "board": "esp8266-esp-01s",
+      "family": "esp8266",
+      "chipFamily": "ESP8266",
+      "fqbn": "esp8266:esp8266:generic",
+      "variant": "serial",
+      "manifest": "manifests/print-server-serial/esp8266-esp-01s.json",
+      "available": false
+    },
+    {
+      "app": "print-server-hybrid",
+      "board": "esp32-s3-devkitc-1",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "hybrid",
+      "manifest": "manifests/print-server-hybrid/esp32-s3-devkitc-1.json",
+      "available": false
+    },
+    {
+      "app": "print-server-hybrid",
+      "board": "esp32-s3-zero",
+      "family": "esp32",
+      "chipFamily": "ESP32-S3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "variant": "hybrid",
+      "manifest": "manifests/print-server-hybrid/esp32-s3-zero.json",
+      "available": false
+    },
+    {
+      "app": "print-server-hybrid",
+      "board": "esp32-s2-devkit",
+      "family": "esp32",
+      "chipFamily": "ESP32-S2",
+      "fqbn": "esp32:esp32:esp32s2",
+      "variant": "hybrid",
+      "manifest": "manifests/print-server-hybrid/esp32-s2-devkit.json",
+      "available": false
+    }
+  ],
+  "boards": [
+    "esp32-devkit-v1",
+    "esp32-wroom-32d",
+    "esp32-wrover-devkit",
+    "esp32-s3-devkitc-1",
+    "esp32-s3-zero",
+    "esp32-c3-devkitm-1",
+    "esp32-c6-devkitc-1",
+    "esp32-s2-devkit",
+    "esp8266-nodemcu-v3",
+    "esp8266-d1-mini",
+    "esp8266-esp-01s",
+    "rpi-zero-2-w",
+    "rpi-4b",
+    "rpi-5",
+    "rpi-zero-w"
+  ],
+  "apps": [
+    "print-server-wifi",
+    "print-server-bt-spp",
+    "print-server-ble",
+    "print-server-usbhost",
+    "print-server-serial",
+    "print-server-hybrid",
+    "print-server-cups"
+  ]
+}

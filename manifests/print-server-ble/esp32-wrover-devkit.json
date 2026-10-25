@@ -1,0 +1,28 @@
+{
+  "name": "Bluetooth LE Print Server - ESP32-WROVER DevKit (WROVER-B / -E)",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/ble/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/ble/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/ble/boot_app0.bin",
+          "offset": 57344
+        },
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/ble/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

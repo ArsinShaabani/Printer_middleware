@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4f46e5">
+<title>Install - Arsin Print Server</title>
+<meta name="description" content="Guided installer: choose an application and board, read the wiring diagram, then flash the firmware from your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/app.css">
+<script type="module" src="https://unpkg.com/esp-web-tools@10.0.0/dist/web/install-button.js?module"></script>
+</head>
+<body>
+<div id="app-header"></div>
+
+<main class="wrap">
+  <section class="hero" style="padding-bottom:0">
+    <h1 data-i18n="install.title">Install Arsin Print Server</h1>
+    <p class="lead" data-i18n="install.subtitle"></p>
+    <div class="row">
+      <span class="badge" id="crumb-app">-</span>
+      <span class="badge" id="crumb-transport">-</span>
+      <span class="badge" id="crumb-board">-</span>
+    </div>
+  </section>
+
+  <section id="section-app">
+    <div class="section-head"><div><span class="step" data-i18n="step.app"></span><h2 class="mt0" data-i18n="step.app"></h2></div></div>
+    <div id="app-list" class="grid cols-3"></div>
+  </section>
+
+  <section id="section-transport" hidden>
+    <div class="section-head"><div><span class="step" data-i18n="step.transport"></span><h2 class="mt0" data-i18n="step.transport"></h2></div></div>
+    <div id="transport-list" class="grid cols-3"></div>
+  </section>
+
+  <section id="section-board" hidden>
+    <div class="section-head">
+      <div><span class="step" data-i18n="step.board"></span><h2 class="mt0" data-i18n="step.board"></h2></div>
+      <div class="row tight">
+        <input id="board-search" type="search" placeholder="Search boards..." style="max-width:200px">
+        <label class="switch small"><input id="only-compatible" type="checkbox" checked> <span data-i18n="install.compat.filter"></span></label>
+        <button id="add-board" class="btn small" data-i18n="custom.board.add"></button>
+      </div>
+    </div>
+    <div id="board-list" class="grid cols-3"></div>
+  </section>
+
+  <section id="section-wiring" hidden>
+    <div class="section-head"><div><span class="step" data-i18n="step.wiring"></span><h2 class="mt0" id="wiring-title" data-i18n="step.wiring"></h2></div>
+      <div class="row tight">
+        <button id="download-guide" class="btn small" data-i18n="install.wiring.download"></button>
+        <button id="copy-guide" class="btn small ghost" data-i18n="install.wiring.copy"></button>
+        <button id="print-guide" class="btn small ghost" data-i18n="action.print"></button>
+      </div>
+    </div>
+    <div class="tabs" data-group="wiring">
+      <button data-tab="diagram" class="active" data-i18n="install.wiring.diagram"></button>
+      <button data-tab="table" data-i18n="install.wiring.table"></button>
+      <button data-tab="bom" data-i18n="install.wiring.bom"></button>
+      <button data-tab="steps" data-i18n="install.wiring.steps"></button>
+      <button data-tab="requirements" data-i18n="install.wiring.requirements"></button>
+      <button data-tab="warnings" data-i18n="install.wiring.warnings"></button>
+    </div>
+    <div data-tabpanel="diagram" data-group="wiring"><div id="wiring-diagram" class="diagram"></div><div id="wiring-summary" class="callout info mt2"></div></div>
+    <div data-tabpanel="table" data-group="wiring" hidden><div id="wiring-table"></div></div>
+    <div data-tabpanel="bom" data-group="wiring" hidden><div id="wiring-bom"></div></div>
+    <div data-tabpanel="steps" data-group="wiring" hidden><ol id="wiring-steps" class="steps-list"></ol></div>
+    <div data-tabpanel="requirements" data-group="wiring" hidden><div id="wiring-requirements"></div></div>
+    <div data-tabpanel="warnings" data-group="wiring" hidden><div id="wiring-warnings"></div></div>
+  </section>
+
+  <section id="section-flash" hidden>
+    <div class="section-head"><div><span class="step" data-i18n="step.flash"></span><h2 class="mt0" data-i18n="step.flash"></h2></div></div>
+    <div id="flash-panel"></div>
+  </section>
+
+  <section id="section-configure" hidden>
+    <div class="section-head"><div><span class="step" data-i18n="step.configure"></span><h2 class="mt0" data-i18n="step.configure"></h2></div></div>
+    <div id="configure-panel"></div>
+  </section>
+</main>
+
+<div id="app-footer"></div>
+<script type="module" src="assets/js/ui/install.js"></script>
+</body>
+</html>

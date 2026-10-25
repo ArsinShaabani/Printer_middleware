@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4f46e5">
+<title>Label designer - Arsin Print Server</title>
+<meta name="description" content="Design labels and receipts in the browser and print them on ESC/POS, ZPL, TSPL, EPL, CPCL, Star or plain printers.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<main class="wrap">
+  <div class="section-head">
+    <div>
+      <h1 class="mt0" data-i18n="designer.title"></h1>
+      <p class="small" data-i18n="designer.subtitle"></p>
+    </div>
+    <div class="row tight no-print">
+      <select id="preset" style="max-width:230px" title="Label size"></select>
+      <select id="language" style="max-width:210px" title="Printer language"></select>
+      <select id="mode" style="max-width:250px" title="Output mode">
+        <option value="native" data-i18n="designer.mode.native"></option>
+        <option value="raster" data-i18n="designer.mode.raster"></option>
+      </select>
+      <button id="btn-new" class="btn small" data-i18n="action.reset"></button>
+      <button id="btn-save-tpl" class="btn small" data-i18n="action.save"></button>
+      <button id="btn-load-tpl" class="btn small" data-i18n="designer.templates"></button>
+    </div>
+  </div>
+
+  <div class="designer-layout">
+    <aside class="stack no-print">
+      <div class="card pad-sm">
+        <h3 class="mb1" data-i18n="designer.elements"></h3>
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+          <button class="btn small" data-add="text" data-i18n="designer.add.text"></button>
+          <button class="btn small" data-add="barcode" data-i18n="designer.add.barcode"></button>
+          <button class="btn small" data-add="qrcode" data-i18n="designer.add.qrcode"></button>
+          <button class="btn small" data-add="image" data-i18n="designer.add.image"></button>
+          <button class="btn small" data-add="line" data-i18n="designer.add.line"></button>
+          <button class="btn small" data-add="box" data-i18n="designer.add.box"></button>
+        </div>
+      </div>
+      <div class="card pad-sm">
+        <div class="spread"><h3 class="mb1">Layers</h3><span class="small muted" id="el-count">0</span></div>
+        <div id="el-list" class="el-list"></div>
+      </div>
+      <div class="card pad-sm">
+        <h3 class="mb1" data-i18n="designer.variables"></h3>
+        <div id="var-list" class="stack"></div>
+        <button id="btn-add-var" class="btn small block mt1" data-i18n="action.add"></button>
+      </div>
+    </aside>
+
+    <section>
+      <div class="canvas-shell">
+        <div class="label-paper" id="preview"></div>
+      </div>
+      <div class="row tight mt1 no-print">
+        <button id="btn-zoom-out" class="btn small">-</button>
+        <span class="small muted" id="zoom-label">100%</span>
+        <button id="btn-zoom-in" class="btn small">+</button>
+        <label class="switch small"><input type="checkbox" id="grid-toggle"> grid</label>
+        <span class="small muted" id="size-label"></span>
+      </div>
+    </section>
+
+    <aside class="stack no-print">
+      <div class="card pad-sm">
+        <h3 class="mb1" data-i18n="designer.properties"></h3>
+        <div id="props" class="stack"></div>
+      </div>
+      <div class="card pad-sm">
+        <h3 class="mb1">Document</h3>
+        <div id="doc-props" class="stack"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="section-head"><div><h2 class="mt0" data-i18n="designer.output"></h2><p class="small" data-i18n="designer.output.hint"></p></div></div>
+  <div class="card">
+    <div class="tabs" data-group="output">
+      <button data-tab="cmd" class="active">Printer commands</button>
+      <button data-tab="hex">Hex</button>
+      <button data-tab="json">JSON</button>
+      <button data-tab="raster">Raster preview</button>
+    </div>
+    <div data-tabpanel="cmd" data-group="output"><pre id="out-cmd"></pre></div>
+    <div data-tabpanel="hex" data-group="output" hidden><pre id="out-hex"></pre></div>
+    <div data-tabpanel="json" data-group="output" hidden><pre id="out-json"></pre></div>
+    <div data-tabpanel="raster" data-group="output" hidden><pre id="out-raster" style="max-height:420px;overflow:auto"></pre></div>
+    <div class="row mt2 no-print">
+      <button id="btn-download" class="primary" data-i18n="action.download"></button>
+      <button id="btn-copy" class="btn" data-i18n="action.copy"></button>
+      <button id="btn-print" class="btn" data-i18n="action.send"></button>
+      <button id="btn-export-json" class="btn ghost" data-i18n="action.export"></button>
+      <button id="btn-import-json" class="btn ghost" data-i18n="action.import"></button>
+      <input id="import-file" type="file" accept="application/json" class="hidden">
+    </div>
+    <div id="warn-host" class="mt2"></div>
+  </div>
+</main>
+
+<div id="app-footer"></div>
+<script type="module" src="assets/js/ui/designer.js"></script>
+</body>
+</html>

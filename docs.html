@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4f46e5">
+<title>Docs &amp; API - Arsin Print Server</title>
+<meta name="description" content="Documentation: wiring library, printer language reference, REST API, build instructions, board JSON schema and troubleshooting FAQ.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<main class="wrap">
+  <h1 data-i18n="nav.docs"></h1>
+  <p class="lead">Everything needed to build, flash, wire and integrate Arsin Print Server - on ESP32, ESP8266 and Raspberry Pi.</p>
+
+  <div class="tabs" data-group="docs">
+    <button data-tab="start" class="active">Quick start</button>
+    <button data-tab="wiring">Wiring library</button>
+    <button data-tab="languages">Printer languages</button>
+    <button data-tab="api">REST API</button>
+    <button data-tab="boards">Add a board</button>
+    <button data-tab="build">Build &amp; deploy</button>
+    <button data-tab="faq">Troubleshooting FAQ</button>
+  </div>
+
+  <div data-tabpanel="start" data-group="docs">
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>1. Flash the board</h3>
+        <p class="small">Open the <a href="install.html">installer</a>, choose an application, a transport and your board. ESP32/ESP8266 flash from the browser with Web Serial; Raspberry Pi uses Raspberry Pi Imager plus a one-line installer.</p>
+      </div>
+      <div class="card">
+        <h3>2. Wire the printer</h3>
+        <p class="small">The installer generates a diagram, a pin table, a bill of materials and a printable guide for your exact board and transport. The <a href="#" data-goto="wiring">wiring library</a> lists every combination.</p>
+      </div>
+      <div class="card">
+        <h3>3. Join it to your network</h3>
+        <p class="small">The board creates the Wi-Fi network <code>arsin_print_server</code> (password <code>arsin1234</code>). The captive portal opens the wizard; enter your office Wi-Fi once and the bridge reconnects forever. Then use <code>http://arsin_print_server.local</code>.</p>
+      </div>
+      <div class="card">
+        <h3>4. Add it to your POS / ERP</h3>
+        <p class="small">Add a network printer on port <code>9100</code> (raw / JetDirect). Anything that prints to a socket printer works: POS software, CUPS, mobile apps, ERP label printing.</p>
+      </div>
+    </div>
+    <div class="callout info mt2">
+      <strong>Default ports:</strong> 80 web app and REST API, 9100 raw print, 5353 mDNS, 631 IPP (Raspberry Pi build).
+    </div>
+  </div>
+
+  <div data-tabpanel="wiring" data-group="docs" hidden>
+    <div class="row mb2">
+      <select id="wiring-app" style="max-width:320px"></select>
+      <select id="wiring-board" style="max-width:320px"></select>
+    </div>
+    <div id="wiring-doc"></div>
+  </div>
+
+  <div data-tabpanel="languages" data-group="docs" hidden>
+    <div id="languages-doc"></div>
+  </div>
+
+  <div data-tabpanel="api" data-group="docs" hidden>
+    <div id="api-doc"></div>
+  </div>
+
+  <div data-tabpanel="boards" data-group="docs" hidden>
+    <div id="boards-doc"></div>
+  </div>
+
+  <div data-tabpanel="build" data-group="docs" hidden>
+    <div id="build-doc"></div>
+  </div>
+
+  <div data-tabpanel="faq" data-group="docs" hidden>
+    <div id="faq-doc"></div>
+  </div>
+</main>
+
+<div id="app-footer"></div>
+<script type="module" src="assets/js/ui/docs.js"></script>
+</body>
+</html>

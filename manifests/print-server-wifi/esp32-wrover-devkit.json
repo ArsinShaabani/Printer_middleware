@@ -1,0 +1,28 @@
+{
+  "name": "Wi-Fi Print Server (Arsin Print Server) - ESP32-WROVER DevKit (WROVER-B / -E)",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/wifi/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/wifi/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/wifi/boot_app0.bin",
+          "offset": 57344
+        },
+        {
+          "path": "../../firmware-bin/esp32-wrover-devkit/wifi/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Serial / COM Port Bridge - Wemos D1 mini (ESP-12F)",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP8266",
+      "parts": [
+        {
+          "path": "../../firmware-bin/esp8266-d1-mini/serial/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "../../firmware-bin/esp8266-d1-mini/serial/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "../../firmware-bin/esp8266-d1-mini/serial/firmware.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}
