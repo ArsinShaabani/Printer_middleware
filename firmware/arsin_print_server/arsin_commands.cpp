@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "arsin_config.h"
 #include "arsin_json.h"
 #include "arsin_log.h"
 
@@ -532,6 +533,222 @@ bool buildStar(const char* action, const Params& p, CmdBuilder& b, char* note, s
     b.add(seq, sizeof(seq));
     snprintf(note, noteCap, "reset command (vendor specific)");
   } else {
+    return false;
+  }
+  return true;
+}
+
+/* ------------------------------------------------------------ ESC/P & plain */
+
+bool buildEscP(const char* action, const Params& p, CmdBuilder& b, char* note, size_t noteCap) {
+  if (!strcmp(action, "initialize")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x40);
+    snprintf(note, noteCap, "ESC @ initialise");
+  } else if (!strcmp(action, "feed")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x64); b.add((uint8_t)clampInt(p.lines, 1, 255));
+    snprintf(note, noteCap, "ESC d n line feed");
+  } else if (!strcmp(action, "cut")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x69);
+    snprintf(note, noteCap, "ESC i cut / form feed on impact printers");
+  } else if (!strcmp(action, "drawer")) {
+    const uint8_t seq[] = {0x1B, 0x70, 0x00, 0x19, 0xFA};
+    b.add(seq, sizeof(seq));
+    snprintf(note, noteCap, "ESC p drawer kick");
+  } else if (!strcmp(action, "density")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x45);
+    snprintf(note, noteCap, "ESC E emphasised print as a darkness hint");
+  } else if (!strcmp(action, "selftest") || !strcmp(action, "config") || !strcmp(action, "info") ||
+             !strcmp(action, "nozzlecheck") || !strcmp(action, "headclean") || !strcmp(action, "align") ||
+             !strcmp(action, "barcode") || !strcmp(action, "barcodetest")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x40);
+    escposTestPattern(b, "ESC/P test page");
+    b.add((uint8_t)0x0C);
+    snprintf(note, noteCap, "ESC/P test page (impact printers have no sensor calibration)");
+  } else if (!strcmp(action, "status") || !strcmp(action, "counter")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x40);
+    b.add("STATUS\r\n");
+    snprintf(note, noteCap, "text status page, impact printers rarely answer status queries");
+  } else if (!strcmp(action, "media") || !strcmp(action, "calibrate") || !strcmp(action, "resetcounter") ||
+             !strcmp(action, "factoryreset")) {
+    b.add((uint8_t)0x1B); b.add((uint8_t)0x40);
+    snprintf(note, noteCap, "not applicable on ESC/P: buffer reset only");
+  } else {
+    return false;
+  }
+  return true;
+}
+
+bool buildPlain(const char* action, const Params& p, CmdBuilder& b, char* note, size_t noteCap) {
+  if (!strcmp(action, "feed")) {
+    b.fill('\n', (size_t)clampInt(p.lines, 1, 255));
+    snprintf(note, noteCap, "line feeds");
+  } else if (!strcmp(action, "cut")) {
+    b.add((uint8_t)0x0C);
+    snprintf(note, noteCap, "form feed");
+  } else if (!strcmp(action, "status") || !strcmp(action, "info")) {
+    b.add("ARSIN PRINT SERVER STATUS\n");
+    snprintf(note, noteCap, "plain text status block");
+  } else if (!strcmp(action, "selftest") || !strcmp(action, "config") || !strcmp(action, "nozzlecheck") ||
+             !strcmp(action, "headclean") || !strcmp(action, "align") || !strcmp(action, "barcode") ||
+             !strcmp(action, "barcodetest")) {
+    b.add("ARSIN PRINT SERVER\n==================\n");
+    b.add("device : ");
+    b.add(g_config.deviceName);
+    b.add("\nprinter: ");
+    b.add(g_config.printerName);
+    b.add("\nlang   : ");
+    b.add(g_config.language);
+    b.add("\nwidth  : ");
+    b.addInt((int)g_config.widthMm);
+    b.add(" mm\ndpi    : ");
+    b.addInt((int)g_config.dpi);
+    b.add("\n\n");
+    for (int i = 0; i < 12; i++) b.add("|..........|\n");
+    b.add("\n");
+    b.add((uint8_t)0x0C);
+    snprintf(note, noteCap, "plain text test page");
+  } else if (!strcmp(action, "initialize") || !strcmp(action, "density") || !strcmp(action, "media") ||
+             !strcmp(action, "calibrate") || !strcmp(action, "resetcounter") || !strcmp(action, "counter") ||
+             !strcmp(action, "factoryreset") || !strcmp(action, "drawer")) {
+    snprintf(note, noteCap, "no byte sequence defined for plain text printers");
+  } else {
+    return false;
+  }
+  return true;
+}
+
+/* ----------------------------------------------------------------- dispatch */
+
+struct LangEntry {
+  const char* id;
+  bool (*build)(const char* action, const Params& p, CmdBuilder& b, char* note, size_t noteCap);
+};
+
+const LangEntry kLanguages[] = {
+    {"escpos", buildEscPos},
+    {"zpl", buildZpl},
+    {"tspl", buildTspl},
+    {"epl", buildEpl},
+    {"cpcl", buildCpcl},
+    {"starprnt", buildStar},
+    {"escp", buildEscP},
+    {"plain", buildPlain},
+};
+
+const char* const kActions[] = {
+    "selftest", "status", "config", "initialize", "feed", "cut", "drawer", "calibrate",
+    "density", "media", "counter", "resetcounter", "factoryreset", "info", "barcode",
+    "nozzlecheck", "headclean", "align", "saveconfig", "barcodetest",
+};
+
+const char* normalizeLanguage(const char* lang) {
+  if (!lang || !lang[0]) return "escpos";
+  if (!strcasecmp(lang, "escpos") || !strcasecmp(lang, "epson")) return "escpos";
+  if (!strcasecmp(lang, "zpl") || !strcasecmp(lang, "zebra")) return "zpl";
+  if (!strcasecmp(lang, "tspl") || !strcasecmp(lang, "tspl2")) return "tspl";
+  if (!strcasecmp(lang, "epl")) return "epl";
+  if (!strcasecmp(lang, "cpcl")) return "cpcl";
+  if (!strcasecmp(lang, "starprnt") || !strcasecmp(lang, "star")) return "starprnt";
+  if (!strcasecmp(lang, "escp") || !strcasecmp(lang, "esc/p")) return "escp";
+  if (!strcasecmp(lang, "plain") || !strcasecmp(lang, "text")) return "plain";
+  return nullptr;
+}
+
+}  // namespace
+
+const char* const* arsinCommandActions(size_t* count) {
+  if (count) *count = sizeof(kActions) / sizeof(kActions[0]);
+  return kActions;
+}
+
+bool arsinCommandActionKnown(const char* action) {
+  if (!action) return false;
+  for (size_t i = 0; i < sizeof(kActions) / sizeof(kActions[0]); i++) {
+    if (!strcmp(action, kActions[i])) return true;
+  }
+  return false;
+}
+
+const char* const* arsinCommandLanguages(size_t* count) {
+  static const char* langs[] = {"escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"};
+  if (count) *count = sizeof(langs) / sizeof(langs[0]);
+  return langs;
+}
+
+bool arsinRepeatBytes(const uint8_t* src, size_t len, uint8_t copies, uint8_t* out, size_t cap, size_t* outLen) {
+  if (!src || !out || copies == 0) return false;
+  if ((size_t)copies * len > cap) return false;
+  size_t o = 0;
+  for (uint8_t c = 0; c < copies; c++) {
+    for (size_t i = 0; i < len; i++) out[o++] = src[i];
+  }
+  if (outLen) *outLen = o;
+  return true;
+}
+
+bool arsinBuildCommand(const char* lang,
+                       const char* action,
+                       const char* paramsJson,
+                       size_t paramsLen,
+                       uint8_t* out,
+                       size_t cap,
+                       size_t* outLen,
+                       char* note,
+                       size_t noteCap) {
+  if (note && noteCap) note[0] = 0;
+  if (outLen) *outLen = 0;
+  if (!out || cap == 0 || !action) return false;
+
+  const char* resolved = normalizeLanguage(lang);
+  if (!resolved) {
+    if (note && noteCap) snprintf(note, noteCap, "unsupported language '%s'", lang ? lang : "");
+    return false;
+  }
+
+  Params params;
+  if (paramsJson && paramsLen > 0) {
+    ParamSink sink(params);
+    char err[48];
+    if (!arsinJsonParse(paramsJson, paramsLen, sink, err, sizeof(err))) {
+      LOGW("command: ignoring malformed params (%s)", err);
+    }
+  }
+  params.lines = clampInt(params.lines, 1, 255);
+  params.copies = clampInt(params.copies, 1, 20);
+  params.darkness = clampInt(params.darkness, 0, 15);
+  params.speed = clampInt(params.speed, 1, 14);
+  params.height = clampInt(params.height, 8, 512);
+  params.width = clampInt(params.width, 1, 10);
+
+  bool handled = false;
+  for (size_t i = 0; i < sizeof(kLanguages) / sizeof(kLanguages[0]); i++) {
+    if (strcmp(kLanguages[i].id, resolved) != 0) continue;
+    CmdBuilder builder(out, cap);
+    handled = kLanguages[i].build(action, params, builder, note, noteCap);
+    if (handled) {
+      size_t len = builder.length();
+      if (params.copies > 1 && len > 0) {
+        static uint8_t scratch[512];
+        const size_t copyLen = (len < sizeof(scratch)) ? len : sizeof(scratch);
+        memcpy(scratch, out, copyLen);
+        size_t repeated = 0;
+        if (arsinRepeatBytes(scratch, copyLen, (uint8_t)params.copies, out, cap, &repeated)) {
+          len = repeated;
+        } else {
+          LOGW("command: copies=%u does not fit the buffer", (unsigned)params.copies);
+        }
+      }
+      if (builder.full()) {
+        if (note && noteCap) snprintf(note, noteCap, "buffer full: command truncated");
+        LOGE("command: %s/%s truncated", resolved, action);
+      }
+      if (outLen) *outLen = len;
+    }
+    break;
+  }
+
+  if (!handled) {
+    if (note && noteCap) snprintf(note, noteCap, "action '%s' is not defined for %s", action, resolved);
     return false;
   }
   return true;

@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Arsin Print Server configuration",
+  "description": "Configuration exchanged between the web app and the firmware (ESP32/ESP8266/Raspberry Pi). POST /api/config accepts this object; GET /api/config returns it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "device": {
+      "type": "object",
+      "description": "Identity shown in the web app and on printed status pages.",
+      "properties": {
+        "name": { "type": "string", "maxLength": 32 },
+        "owner": { "type": "string", "maxLength": 64 },
+        "location": { "type": "string", "maxLength": 64 },
+        "notes": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "ap": {
+      "type": "object",
+      "description": "Fallback access point created by the board.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "ssid": { "type": "string", "maxLength": 32 },
+        "password": { "type": "string", "minLength": 8, "maxLength": 63 },
+        "ip": { "type": "string", "format": "ipv4" }
+      }
+    },
+    "sta": {
+      "type": "object",
+      "description": "Office / shop network the bridge joins and remembers.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "ssid": { "type": "string", "maxLength": 32 },
+        "password": { "type": "string", "maxLength": 63 },
+        "dhcp": { "type": "boolean" },
+        "ip": { "type": "string" },
+        "gateway": { "type": "string" },
+        "subnet": { "type": "string" },
+        "dns": { "type": "string" },
+        "hostname": { "type": "string", "maxLength": 32 },
+        "alwaysReconnect": { "type": "boolean" },
+        "saved": {
+          "type": "array",
+          "maxItems": 5,
+          "items": { "type": "object", "properties": { "ssid": { "type": "string" }, "password": { "type": "string" } } }
+        }
+      }
+    },
+    "printer": {
+      "type": "object",
+      "description": "Printer port, language and media settings.",
+      "properties": {
+        "name": { "type": "string", "maxLength": 40 },
+        "model": { "type": "string", "maxLength": 40 },
+        "language": { "type": "string", "enum": ["escpos", "zpl", "epl", "tspl", "cpcl", "starprnt", "escp", "ipl", "dpl", "plain"] },
+        "profile": { "type": "string", "enum": ["receipt", "label", "inkjet", "impact"] },
+        "transport": { "type": "string", "enum": ["uart", "usbhost", "bt", "ble", "parallel", "network"] },
+        "baud": { "type": "integer", "minimum": 300, "maximum": 921600 },
+        "dataBits": { "type": "integer", "minimum": 5, "maximum": 8 },
+        "parity": { "type": "string", "enum": ["none", "even", "odd"] },
+        "stopBits": { "type": "integer", "minimum": 1, "maximum": 2 },
+        "widthMm": { "type": "number", "minimum": 20, "maximum": 300 },
+        "dpi": { "type": "integer", "minimum": 180, "maximum": 600 },
+        "cut": { "type": "boolean" },
+        "charset": { "type": "string", "enum": ["cp437", "cp850", "cp1252", "cp1256", "cp864"] },
+        "darkness": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "speed": { "type": "integer", "minimum": 1, "maximum": 14 },
+        "mediaType": { "type": "string", "enum": ["gap", "blackmark", "continuous"] },
+        "strobeDelayUs": { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    },
+    "bt": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string", "maxLength": 32 },
+        "pin": { "type": "string", "maxLength": 16 },
+        "ble": { "type": "boolean" }
+      }
+    },
+    "usbHost": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "autoDetect": { "type": "boolean" },
+        "maxPowerMa": { "type": "integer", "minimum": 100, "maximum": 2000 }
+      }
+    },
+    "network": {
+      "type": "object",
+      "properties": {
+        "rawPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "webPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "mdns": { "type": "boolean" },
+        "telnetDebug": { "type": "boolean" },
+        "keepAlive": { "type": "boolean" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "webPassword": { "type": "string", "maxLength": 64 },
+        "apiKey": { "type": "string", "maxLength": 64 },
+        "allowCors": { "type": "boolean" }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": { "type": "string", "enum": ["error", "warn", "info", "debug"] },
+        "bufferLines": { "type": "integer", "minimum": 20, "maximum": 500 }
+      }
+    },
+    "cloud": {
+      "type": "object",
+      "properties": {
+        "webhookUrl": { "type": "string", "maxLength": 200 },
+        "onJob": { "type": "boolean" },
+        "ntpServer": { "type": "string", "maxLength": 64 },
+        "timezone": { "type": "string", "maxLength": 40 }
+      }
+    }
+  }
+}

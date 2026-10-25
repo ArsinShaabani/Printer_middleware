@@ -318,6 +318,37 @@ function renderElementSvg(el, doc, dpi, opts) {
 }
 
 
+/** True when an element needs a bitmap to be printed. */
+export function needsMono(el) {
+  return el.type === 'image' || el.type === 'barcode' || el.type === 'qrcode';
+}
+
+/**
+ * Get (or derive) a 1bpp bitmap for an element. Barcodes and QR codes are
+ * generated locally from the verified encoders, so graphics-only printer
+ * languages (EPL, ESC/P, IPL, DPL) work without any browser canvas; raster
+ * images still need the caller to provide el.mono (the designer rasterises them
+ * with the canvas API).
+ */
+export function monoFor(el, ctx) {
+  if (el.mono) return el.mono;
+  if (el.type === 'barcode') {
+    const enc = encodeBarcode(el.symbology, substituteVars(el.data, ctx.vars), {});
+    return barcodeToMono(enc, {
+      moduleWidth: Math.max(1, Math.round(mmToDots(el.narrowMm || 0.25, ctx.dpi))),
+      height: el.heightMm ? mmToDots(el.heightMm, ctx.dpi) : mmToDots(10, ctx.dpi),
+      showText: el.showText ? el.showText : false,
+      textSizeMm: el.textSizeMm || 2.6
+    });
+  }
+  if (el.type === 'qrcode') {
+    const qr = qrEncode(substituteVars(el.data, ctx.vars), { ecc: el.ecc || 'M' });
+    const size = el.sizeMm ? mmToDots(el.sizeMm, ctx.dpi) : 120;
+    return qrToMono(qr, { moduleSize: Math.max(1, Math.round(size / (qr.size + 8))) });
+  }
+  return null;
+}
+
 /* ------------------------------------------------------ native renderers */
 
 function ctxFor(doc) {
@@ -492,8 +523,9 @@ export function renderEpl(doc, ctx = ctxFor(doc)) {
       case 'image':
       case 'barcode':
       case 'qrcode': {
-        if (el.mono) out.push(eplGwu(el.mono, { x, y }));
-        else ctx.warnings.push(`${el.type} element needs raster data for EPL output`);
+        const mono = monoFor(el, ctx);
+        if (mono) out.push(eplGwu(mono, { x, y }));
+        else ctx.warnings.push(`${el.type} element needs raster data for EPL output (upload the image again)`);
         break;
       }
       case 'line': {
@@ -720,15 +752,10 @@ export function renderEscp(doc, ctx = ctxFor(doc)) {
       out.push([0x1b, 0x21, el.bold ? 0x08 : 0x00]);
       out.push(bytesFromText(`${textOf(el, ctx)}\n`));
       out.push([0x1b, 0x21, 0x00]);
-    } else if (el.mono) {
-      out.push(escpRaster(el.mono));
-    } else if (el.type === 'qrcode') {
-      out.push(escpRaster(qrToMono(qrEncode(substituteVars(el.data, ctx.vars), { ecc: el.ecc || 'M' }), { moduleSize: 6 })));
-    } else if (el.type === 'barcode') {
-      const enc = encodeBarcode(el.symbology, substituteVars(el.data, ctx.vars), {});
-      out.push(escpRaster(barcodeToMono(enc, { moduleWidth: 2, height: 80, showText: el.showText ? true : false })));
     } else {
-      ctx.warnings.push(`${el.type} element skipped: ESC/P output needs raster data`);
+      const mono = monoFor(el, ctx);
+      if (mono) out.push(escpRaster(mono));
+      else ctx.warnings.push(`${el.type} element skipped: ESC/P output needs raster data (re-upload the image)`);
     }
   }
   out.push([0x0c]); // form feed

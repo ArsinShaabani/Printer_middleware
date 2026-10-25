@@ -38,6 +38,11 @@ function show(id, on = true) {
   if (node) node.hidden = !on;
 }
 
+/** Scroll a section into view (guarded so headless test environments work). */
+function scrollTo(node) {
+  if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function setCrumbs() {
   $('#crumb-app').textContent = state.app ? state.app.name : '-';
   $('#crumb-transport').textContent = state.transport ? transportName(state.transport) : '-';
@@ -86,7 +91,7 @@ function chooseApp(appId) {
   show('section-flash', false);
   show('section-configure', false);
   setCrumbs();
-  section('section-transport').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scrollTo(section('section-transport'));
 }
 
 /* -------------------------------------------------------- step 2: transport */
@@ -121,7 +126,7 @@ function chooseTransport(id) {
   show('section-flash', false);
   show('section-configure', false);
   setCrumbs();
-  section('section-board').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scrollTo(section('section-board'));
 }
 
 /* ------------------------------------------------------------- step 3: board */
@@ -184,7 +189,7 @@ function chooseBoard(id) {
   setCrumbs();
   renderFlash();
   renderConfigure();
-  section('section-wiring').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scrollTo(section('section-wiring'));
   store.set('lastSelection', { app: state.app.id, transport: state.transport, board: state.board.id });
 }
 

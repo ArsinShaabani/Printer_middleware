@@ -344,20 +344,35 @@ function wirePreviewDrag() {
   });
 }
 
-function renderOutput() {
+/** Rasterise the label once per document revision (canvas based). */
+async function ensureRaster() {
+  const signature = JSON.stringify(state.doc);
+  if (state.raster && state.rasterSignature === signature) return state.raster;
+  const mono = await rasterise();
+  state.rasterSignature = signature;
+  return mono;
+}
+
+async function renderOutput() {
+  await prepareImages();
   const mode = currentMode();
   const lang = state.doc.language;
   const warnings = [];
   let result = null;
   try {
     if (mode === 'raster') {
-      result = renderLabel(state.doc, { lang, mode: 'raster', raster: state.raster || null });
+      const mono = await ensureRaster();
+      result = renderLabel(state.doc, { lang, mode: 'raster', raster: mono });
     } else {
       result = renderLabel(state.doc, { lang, mode: 'native' });
     }
   } catch (e) {
-    $('#out-cmd').textContent = 'Error: ' + e.message;
-    warnings.push(e.message);
+    warnings.push('Raster mode failed (' + e.message + ') - showing native printer commands instead.');
+    try {
+      result = renderLabel(state.doc, { lang, mode: 'native' });
+    } catch (inner) {
+      $('#out-cmd').textContent = 'Error: ' + inner.message;
+    }
   }
   state.output = result;
   if (result) {
@@ -376,18 +391,31 @@ function renderOutput() {
   }
 }
 
+/** UTF-8 safe SVG -> data URL (labels may contain Persian or Arabic text). */
+function svgToDataUrl(svg) {
+  const bytes = new TextEncoder().encode(svg);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return 'data:image/svg+xml;base64,' + btoa(binary);
+}
+
 /** Render the label to a 1bpp bitmap through the browser canvas. */
 async function rasterise() {
+  const probe = document.createElement('canvas');
+  if (!probe.getContext || !probe.getContext('2d')) throw new Error('this browser cannot rasterise (no canvas 2d context)');
   const svg = renderLabelSvg(state.doc, {});
-  const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
-  const image = new Image();
+  const url = svgToDataUrl(svg);
   const width = mmToDots(state.doc.width, state.doc.dpi);
   const height = mmToDots(state.doc.height, state.doc.dpi);
-  await new Promise((resolve, reject) => {
-    image.onload = resolve;
-    image.onerror = () => reject(new Error('could not rasterise the label'));
-    image.src = url;
-  });
+  const image = new Image();
+  await Promise.race([
+    new Promise((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('could not rasterise the label'));
+      image.src = url;
+    }),
+    new Promise((resolve, reject) => setTimeout(() => reject(new Error('rasterising timed out')), 5000))
+  ]);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -499,6 +527,50 @@ function flatten(chunks) {
 
 /* ------------------------------------------------------------------- boot */
 
+
+/* ------------------------------------------------------------ image raster */
+
+const imageCache = new Map();
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('could not load the image'));
+    image.src = src;
+  });
+}
+
+/** Convert every image element into a 1bpp bitmap so it can be printed natively. */
+async function prepareImages() {
+  for (const element of state.doc.elements) {
+    if (element.type !== 'image' || !element.src) continue;
+    const width = Math.max(1, mmToDots(element.w || 10, state.doc.dpi));
+    const height = Math.max(1, mmToDots(element.h || 10, state.doc.dpi));
+    const key = [element.src.slice(0, 48), width, height, element.dither, element.threshold, element.invert].join('|');
+    if (imageCache.has(key)) {
+      element.mono = imageCache.get(key);
+      continue;
+    }
+    try {
+      const image = await loadImage(element.src);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+      const data = ctx.getImageData(0, 0, width, height);
+      const mono = toMono(data, { threshold: element.threshold == null ? 128 : element.threshold, dither: element.dither || 'floyd', invert: !!element.invert });
+      imageCache.set(key, mono);
+      element.mono = mono;
+    } catch (e) {
+      element.mono = null;
+    }
+  }
+}
+
 function renderAll() {
   renderElementList();
   renderProps();
@@ -506,6 +578,12 @@ function renderAll() {
   renderVars();
   renderPreview();
   renderOutput();
+}
+
+/** Async variant used whenever image bitmaps may need refreshing. */
+async function renderAllAsync() {
+  await prepareImages();
+  renderAll();
 }
 
 function wire() {
@@ -524,7 +602,7 @@ function wire() {
     try {
       state.doc = JSON.parse(await f.text());
       if (!Array.isArray(state.doc.elements)) state.doc.elements = [];
-      renderAll();
+      await renderAllAsync();
       toast('Imported ' + f.name, 'ok');
     } catch (err) {
       toast('Import failed: ' + err.message, 'danger');
@@ -564,9 +642,10 @@ function seed() {
     { id: uid(), type: 'qrcode', x: 33, y: 14, sizeMm: 13, data: 'ARSIN-{{serial}}', ecc: 'M' },
     { id: uid(), type: 'box', x: 1, y: 1, w: 48, h: 28, thicknessMm: 0.3 }
   ];
+  state.selected = state.doc.elements[0].id;
 }
 
 fillSelects();
 wire();
 seed();
-renderAll();
+renderAllAsync();
