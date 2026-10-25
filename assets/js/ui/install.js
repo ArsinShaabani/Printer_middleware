@@ -308,14 +308,27 @@ async function loadManifestIndex() {
   return state.manifestIndex;
 }
 
+/**
+ * A build can only be flashed when its compiled binaries are reachable.
+ * The manifest files themselves are committed, so their existence is NOT a
+ * signal - the index tells us whether the CI built the binaries, and as a
+ * fallback we probe the first part of the manifest.
+ */
 async function manifestAvailable(path) {
   const index = await loadManifestIndex();
   if (Array.isArray(index.builds) && index.builds.length) {
-    return index.builds.some((b) => b.manifest === path);
+    const entry = index.builds.find((b) => b.manifest === path);
+    if (entry) return entry.available === true;
   }
   try {
     const res = await fetch(path, { method: 'GET', cache: 'no-store' });
-    return res.ok;
+    if (!res.ok) return false;
+    const manifest = await res.json();
+    const first = manifest && manifest.builds && manifest.builds[0] && manifest.builds[0].parts && manifest.builds[0].parts[0];
+    if (!first || !first.path) return false;
+    const url = new URL(first.path, new URL(path, location.href)).toString();
+    const probe = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    return probe.ok;
   } catch (e) {
     return false;
   }

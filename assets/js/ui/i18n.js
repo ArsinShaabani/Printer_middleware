@@ -288,7 +288,15 @@ export function setLanguage(lang) {
     /* storage disabled - ignore */
   }
   applyTranslations(document);
-  listeners.forEach((fn) => fn(current));
+  for (const fn of listeners) {
+    // A listener that belongs to a page which is no longer mounted (or that
+    // fails for any other reason) must never break language switching.
+    try {
+      fn(current);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.warn) console.warn('i18n listener failed:', e && e.message);
+    }
+  }
 }
 
 /** Apply data-i18n / data-i18n-attr attributes inside a root element. */

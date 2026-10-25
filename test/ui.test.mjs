@@ -360,3 +360,61 @@ test('docs.html renders the wiring library, the language reference and the FAQ',
   assert.match(doc.getElementById('wiring-doc').textContent, /Raspberry Pi serial wiring|Network printer/);
 });
 
+
+/**
+ * Boot install.html with a stubbed manifest index so both CI states can be
+ * checked: the installer must only offer the browser flash button when the
+ * compiled binaries are really reachable (the manifest files themselves are
+ * committed, so their existence is not a signal).
+ */
+async function loadInstallWithBinaries(available) {
+  const html = readFileSync(`${ROOT}/install.html`, 'utf8');
+  const dom = new JSDOM(html, {
+    runScripts: 'outside-only',
+    url: 'http://localhost/install.html?app=print-server-wifi&board=esp32-devkit-v1'
+  });
+  const { window } = dom;
+  Object.defineProperty(globalThis, 'navigator', { value: window.navigator, configurable: true, writable: true });
+  for (const key of ['window', 'document', 'localStorage', 'Image', 'HTMLElement', 'Element', 'Node', 'Event', 'CustomEvent', 'getComputedStyle', 'requestAnimationFrame', 'DOMParser', 'XMLSerializer', 'NodeFilter', 'history']) {
+    globalThis[key] = window[key];
+  }
+  globalThis.window = window;
+  globalThis.location = window.location;
+  const json = (value) => ({ ok: true, status: 200, async json() { return value; } });
+  globalThis.fetch = async (url, init = {}) => {
+    const path = String(url).replace(/^https?:\/\/[^/]+\//, '');
+    if (path.startsWith('manifests/index.json')) {
+      const index = JSON.parse(readFileSync(`${ROOT}/manifests/index.json`, 'utf8'));
+      index.builds = index.builds.map((b) => ({ ...b, available }));
+      return json(index);
+    }
+    if (String(init.method || 'GET').toUpperCase() === 'HEAD') {
+      return { ok: available, status: available ? 200 : 404, async json() { return {}; } };
+    }
+    return json(JSON.parse(readFileSync(`${ROOT}/${path}`, 'utf8')));
+  };
+  window.Element.prototype.scrollIntoView = function scrollIntoView() {};
+  const file = `${ROOT}/assets/js/ui/install.js`;
+  await import(`${pathToFileURL(file).href}?binaries=${available}-${Date.now()}-${Math.random()}`);
+  const ready = await waitFor(() => window.document.getElementById('flash-panel').textContent.trim().length > 20);
+  assert.ok(ready, 'install.html: the flash panel did not render');
+  await sleep(200);
+  return window.document;
+}
+
+test('install.html asks for a build when the CI has not produced the binaries yet', async () => {
+  const doc = await loadInstallWithBinaries(false);
+  const panel = doc.getElementById('flash-panel');
+  assert.match(panel.textContent, /build required/i, 'the badge says a build is needed');
+  assert.equal(count(doc, '#flash-panel esp-web-install-button'), 0, 'no flash button without binaries');
+  assert.ok(count(doc, '#flash-panel details') >= 1, 'manual build instructions are offered instead');
+});
+
+test('install.html offers the Web Serial button once the binaries exist', async () => {
+  const doc = await loadInstallWithBinaries(true);
+  const panel = doc.getElementById('flash-panel');
+  assert.match(panel.textContent, /firmware ready/i, 'the badge says the firmware is ready');
+  const button = doc.querySelector('#flash-panel esp-web-install-button');
+  assert.ok(button, 'the esp-web-tools button is rendered');
+  assert.equal(button.getAttribute('manifest'), 'manifests/print-server-wifi/esp32-devkit-v1.json');
+});
