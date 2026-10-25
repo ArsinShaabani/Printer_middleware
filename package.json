@@ -1,0 +1,23 @@
+{
+  "name": "arsin-print-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-based installer + wireless print server firmware for ESP32 / ESP8266 / Raspberry Pi",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/",
+    "validate": "node tools/validate-catalogs.mjs",
+    "build:web-assets": "node tools/build-web-assets.mjs",
+    "build:manifests": "node tools/generate-manifests.mjs",
+    "build": "npm run build:web-assets && npm run build:manifests",
+    "serve": "node tools/serve.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3",
+    "qrcode": "^1.5.4"
+  },
+  "dependencies": {
+    "bwip-js": "^4.11.4"
+  }
+}
