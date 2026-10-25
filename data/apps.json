@@ -1,0 +1,523 @@
+{
+  "schema": 1,
+  "version": "1.0.0",
+  "notes": "Application (firmware) catalog. Every app declares the transports it supports and the wiring recipe for each transport; board pins are referenced by role (@uartTx, @v5, @usbDp, ...) so new boards only need pin roles, not new wiring code.",
+  "apps": [
+    {
+      "id": "print-server-wifi",
+      "name": "Wi-Fi Print Server (Arsin Print Server)",
+      "tagline": "Make any printer wireless over Wi-Fi with a full web dashboard.",
+      "summary": "The flagship build: turns a serial, parallel or USB printer into a network printer. Serves a complete web app (designer, maintenance, configuration) from the board itself, exposes a raw TCP 9100 print port, advertises itself with mDNS as arsin_print_server.local and reconnects to your office Wi-Fi forever.",
+      "category": "printer-bridge",
+      "capabilities": ["wifi", "web-ui", "tcp9100", "mdns", "ota", "label-designer", "troubleshooting", "job-queue", "captive-portal", "api", "webhook", "sse"],
+      "requires": { "families": ["esp32", "esp8266", "rpi"], "radios": ["wifi"] },
+      "features": [
+        "Full responsive web app served from the device (Persian/English, RTL aware)",
+        "Label designer with text, barcodes (8 symbologies), QR, images, shapes and variables",
+        "Raw TCP 9100 + IPP-ish HTTP print endpoint, so POS apps and CUPS can drive it",
+        "mDNS: http://arsin_print_server.local - no IP hunting",
+        "Stores up to 5 Wi-Fi networks and always reconnects to the last working one",
+        "Maintenance console: self test, status query, calibration, head/nozzle check, counter reset",
+        "OTA firmware update and configuration backup/restore from the browser",
+        "Job queue with history, byte counters, error log and webhooks"
+      ],
+      "requirements": [
+        "Board with Wi-Fi (every supported ESP32/ESP8266/Raspberry Pi model)",
+        "5V power supply with at least 1A for the board + printer logic",
+        "Correct logic level between board and printer (3.3V vs 5V TTL)",
+        "A printer that accepts raw data (ESC/POS, ZPL, TSPL, EPL, CPCL, ESC/P or plain text)"
+      ],
+      "transports": [
+        { "id": "serial", "name": "UART / COM port (TTL)", "default": true, "description": "Solder or plug onto the printer mainboard TTL serial port - the most universal option.", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] },
+        { "id": "usbhost", "name": "USB host (printer USB cable)", "description": "Board acts as USB host; the printer keeps its own USB cable. Needs USB OTG hardware.", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] },
+        { "id": "parallel", "name": "Parallel / Centronics (DB25)", "description": "Legacy parallel port printers (dot matrix, old inkjets) driven over GPIO with level shifters.", "langs": ["escp", "plain"] }
+      ],
+      "wiring": {
+        "serial": {
+          "title": "TTL serial wiring (board UART -> printer serial port)",
+          "summary": "Four wires plus a ground reference. Cross TX and RX, never connect the printer 5V rail to the board.",
+          "power": "Power the board from its own 5V supply and the printer from its original adapter.",
+          "links": [
+            { "signal": "TX", "board": "@uartTx", "printer": "Printer RX (DB25 pin 3 / RJ45 pin 6 / header RX)", "cable": "Jumper wire", "required": true, "note": "Board transmit -> printer receive. If your printer is 5V TTL add a 1k/2k divider or a level shifter." },
+            { "signal": "RX", "board": "@uartRx", "printer": "Printer TX (DB25 pin 2 / RJ45 pin 4 / header TX)", "cable": "Jumper wire", "required": true, "note": "Needed for status queries, calibration replies and job completion detection." },
+            { "signal": "GND", "board": "@gnd", "printer": "Printer GND / signal ground", "cable": "Jumper wire", "required": true, "note": "Always connect ground first; a missing ground is the most common cause of garbage output." },
+            { "signal": "DTR/CTS", "board": "@spare1", "printer": "Printer BUSY / DTR (DB25 pin 11)", "cable": "Jumper wire", "required": false, "note": "Optional hardware flow control - lets the bridge wait when the printer buffer is full." }
+          ],
+          "cables": [
+            { "qty": 3, "item": "Dupont jumper wires 20 cm", "note": "Use a different colour for TX, RX and GND" },
+            { "qty": 1, "item": "1000 uF / 16V electrolytic capacitor", "note": "Across the board 5V and GND rails if the printer shares the supply" },
+            { "qty": 1, "item": "BSS138 level shifter or 1k + 2k resistors", "note": "Only if the printer port is 5V TTL" }
+          ],
+          "steps": [
+            "Power everything off and unplug the printer.",
+            "Identify the printer serial port: DB25 pin 2 (TX), pin 3 (RX), pin 7 (GND) or the RJ45/header equivalent.",
+            "Connect board GND to printer GND.",
+            "Connect board TX (see pin list) to printer RX through the level shifter if the printer is 5V TTL.",
+            "Connect printer TX to board RX.",
+            "Set the printer DIP switches to the fastest supported baud rate (115200 recommended) with 8N1 and hardware flow control off.",
+            "Power on, open http://arsin_print_server.local, pick the printer language and press Test print."
+          ],
+          "prerequisites": [
+            "Soldering iron or a JST/Dupont crimp tool",
+            "Multimeter to confirm 5V/3.3V and GND before connecting",
+            "Printer service manual or a pinout photo of its serial port"
+          ],
+          "warnings": [
+            "Never connect the printer 24V/5V rail to a board GPIO.",
+            "Some printers use RS-232 levels (+/-12V) on the DB25 port - those need a MAX232 style adapter, not a direct TTL connection."
+          ]
+        },
+        "usbhost": {
+          "title": "USB host wiring (printer USB cable -> board USB port)",
+          "summary": "No soldering to the printer: the board enumerates the printer as a USB device and forwards print data.",
+          "power": "Use a powered USB hub or a 5V/2A supply - USB printers can pull 500 mA plus motor peaks.",
+          "links": [
+            { "signal": "USB 5V (VBUS)", "board": "@usb5v", "printer": "USB VBUS (red)", "cable": "USB cable / breakout", "required": true, "note": "On ESP32-S3/S2 the 5V pin supplies the USB bus; on Raspberry Pi the port supplies it." },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "USB D- (white)", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "USB D+ (green)", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "USB GND (black)", "cable": "USB cable", "required": true }
+          ],
+          "cables": [
+            { "qty": 1, "item": "USB-A to USB-B (or USB-C) printer cable" },
+            { "qty": 1, "item": "Powered USB 2.0 hub", "note": "Strongly recommended for laser/inkjet printers" },
+            { "qty": 1, "item": "USB-C OTG adapter", "note": "Only for Raspberry Pi Zero / micro-USB boards" }
+          ],
+          "steps": [
+            "Plug the printer USB cable into the board USB host port (native USB port on ESP32-S3/S2, any port on Raspberry Pi).",
+            "Power the board from a separate 5V supply or a powered hub.",
+            "Open the web app, go to Configuration > Connection, choose 'USB host' and press Detect printer.",
+            "The bridge reports the USB VID/PID, manufacturer and product string, then installs the right language profile.",
+            "Press Test print to confirm."
+          ],
+          "prerequisites": [
+            "A board with USB OTG host support (ESP32-S3, ESP32-S2, Raspberry Pi) - ESP8266 and ESP32-C3 cannot do this",
+            "USB printer cable that fits both ends"
+          ],
+          "warnings": [
+            "USB printers that require a proprietary driver (most inkjets and lasers) only work through the Raspberry Pi build with CUPS.",
+            "Do not power a laser printer from the board 5V rail."
+          ]
+        },
+        "parallel": {
+          "title": "Parallel / Centronics wiring (GPIO -> DB25)",
+          "summary": "Legacy parallel printers are driven as a raw byte stream: 8 data lines, STROBE, BUSY and GND.",
+          "power": "Printer has its own mains supply; the board only drives logic lines.",
+          "links": [
+            { "signal": "D0..D7", "board": "@spare1 + 7 GPIO", "printer": "DB25 pins 2-9 (data)", "cable": "Ribbon + level shifter", "required": true, "note": "Use a 74HCT245 buffer powered from the printer 5V rail." },
+            { "signal": "STROBE", "board": "@spare2", "printer": "DB25 pin 1", "cable": "Ribbon + level shifter", "required": true },
+            { "signal": "BUSY", "board": "@uartRx", "printer": "DB25 pin 11", "cable": "Jumper wire", "required": true, "note": "Flow control: never pulse STROBE while BUSY is high." },
+            { "signal": "GND", "board": "@gnd", "printer": "DB25 pins 18-25", "cable": "Ribbon", "required": true }
+          ],
+          "cables": [{ "qty": 1, "item": "74HCT245 octal buffer + ribbon cable" }, { "qty": 1, "item": "DB25 male connector" }],
+          "steps": [
+            "Wire the 8 data lines through the buffer, then STROBE, then BUSY and ground.",
+            "Select 'Parallel' as the transport in the web app and set the strobe delay (1-10 us).",
+            "Send the ESC/P self test page to verify every line."
+          ],
+          "prerequisites": ["GPIO bit-banging build (Raspberry Pi or ESP32 with the parallel build)"],
+          "warnings": ["Parallel ports are 5V TTL: always buffer the ESP32 3.3V GPIO with a 74HCT245."]
+        }
+      },
+      "ports": [
+        { "port": 80, "proto": "tcp", "service": "web app + REST API" },
+        { "port": 9100, "proto": "tcp", "service": "raw print (JetDirect / POS)" },
+        { "port": 631, "proto": "tcp", "service": "IPP (Raspberry Pi build)" },
+        { "port": 5353, "proto": "udp", "service": "mDNS / DNS-SD" }
+      ],
+      "firmware": { "env": "esp32", "variant": "wifi", "assets": "web" }
+    },
+    {
+      "id": "print-server-bt-spp",
+      "name": "Bluetooth Print Server (SPP)",
+      "tagline": "Pair the printer like a headset - Bluetooth Classic SPP, no network needed.",
+      "summary": "Turns a serial/USB printer into a Bluetooth SPP device that Android POS apps, Windows Bluetooth printers and phones can pair with. Includes the same web app, served over Wi-Fi when configured, and a Bluetooth pairing PIN screen.",
+      "category": "printer-bridge",
+      "capabilities": ["btClassic", "web-ui", "bluetooth-spp", "troubleshooting", "job-queue", "api"],
+      "requires": { "families": ["esp32", "rpi"], "radios": ["btClassic"] },
+      "features": [
+        "Bluetooth SPP (serial port profile) with configurable device name and PIN",
+        "Auto-reconnect to the last paired host",
+        "Wi-Fi fallback: the same web app is reachable when Wi-Fi is configured",
+        "Raw byte passthrough so any app that prints to a Bluetooth printer works",
+        "Live link statistics: bytes in/out, disconnects, latency"
+      ],
+      "requirements": [
+        "ESP32 (original) or Raspberry Pi - the ESP32-S3/S2/C3/C6 and ESP8266 have no Bluetooth Classic",
+        "Printer serial or USB connection as described in the wiring section",
+        "5V 1A supply"
+      ],
+      "transports": [
+        { "id": "serial", "name": "UART / COM port (TTL)", "default": true, "description": "Printer connected over TTL serial; the Bluetooth link replaces the cable to the till or phone.", "langs": ["escpos", "zpl", "tspl", "starprnt", "escp", "plain"] },
+        { "id": "usbhost", "name": "USB host + Bluetooth", "description": "USB printer plus Bluetooth SPP output (Raspberry Pi or ESP32-S3 with BLE fallback).", "langs": ["escpos", "zpl", "tspl", "starprnt", "escp", "plain"] }
+      ],
+      "wiring": {
+        "serial": {
+          "title": "Bluetooth SPP bridge wiring (no host cable)",
+          "summary": "Only the printer side is wired; the host (till, tablet, phone) connects over Bluetooth.",
+          "power": "Board on 5V USB, printer on its own adapter.",
+          "links": [
+            { "signal": "TX", "board": "@uartTx", "printer": "Printer RX", "cable": "Jumper wire", "required": true },
+            { "signal": "RX", "board": "@uartRx", "printer": "Printer TX", "cable": "Jumper wire", "required": true, "note": "Used to read printer status back over the Bluetooth link." },
+            { "signal": "GND", "board": "@gnd", "printer": "Printer GND", "cable": "Jumper wire", "required": true }
+          ],
+          "cables": [
+            { "qty": 3, "item": "Dupont jumper wires" },
+            { "qty": 1, "item": "Antenna clearance: keep the board 1 cm away from metal and the printer PSU", "note": "Bluetooth range suffers badly inside a metal chassis" }
+          ],
+          "steps": [
+            "Wire TX/RX/GND to the printer serial port.",
+            "Flash the Bluetooth build and open the web app (Wi-Fi AP arsin_print_server if no Wi-Fi is configured).",
+            "Set the Bluetooth device name (default arsin_print_server) and PIN (default 0000).",
+            "Pair from the phone/till, then select the printer in the POS app.",
+            "Print a test receipt to confirm the raw passthrough works."
+          ],
+          "prerequisites": ["A Bluetooth Classic capable board", "A POS app or OS that supports Bluetooth SPP printing"],
+          "warnings": [
+            "Bluetooth Classic throughput is ~100 kB/s: fine for receipts, slow for large raster labels.",
+            "Some iOS apps only support AirPrint/IPP - use the Wi-Fi or Raspberry Pi build for those."
+          ]
+        },
+        "usbhost": {
+          "title": "USB printer + Bluetooth output",
+          "summary": "The printer plugs into the board over USB; the till talks Bluetooth.",
+          "power": "Use a powered hub when the printer draws more than 500 mA.",
+          "links": [
+            { "signal": "USB 5V", "board": "@usb5v", "printer": "USB VBUS", "cable": "USB cable", "required": true },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "USB D-", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "USB D+", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "USB GND", "cable": "USB cable", "required": true }
+          ],
+          "cables": [{ "qty": 1, "item": "USB printer cable" }, { "qty": 1, "item": "Powered USB hub (optional but recommended)" }],
+          "steps": [
+            "Plug the printer into the board USB host port.",
+            "Choose USB host as the transport in the web app.",
+            "Pair over Bluetooth and print a test page."
+          ],
+          "prerequisites": ["Board with USB OTG host support"],
+          "warnings": ["USB printers that need a proprietary driver are not supported by this build."]
+        }
+      },
+      "firmware": { "env": "esp32", "variant": "bt", "assets": "web" }
+    },
+    {
+      "id": "print-server-ble",
+      "name": "Bluetooth LE Print Server",
+      "tagline": "Modern BLE bridge for ESP32-C3/C6/S3 and phones.",
+      "summary": "Exposes the printer over a Bluetooth Low Energy GATT service (Nordic UART style TX/RX characteristics plus a battery/status service) so mobile apps and modern POS terminals can print without a network.",
+      "category": "printer-bridge",
+      "capabilities": ["ble", "web-ui", "troubleshooting", "api"],
+      "requires": { "families": ["esp32", "rpi"], "radios": ["ble"] },
+      "features": [
+        "BLE GATT UART service (6E400001-B5A3-F393-E0A9-E50E24DCCA9E) with TX/RX characteristics",
+        "Device Information service with model, firmware version and serial number",
+        "Configurable advertising name and connection parameters (latency/power tuning)",
+        "Works on ESP32-S3/C3/C6 which have no Bluetooth Classic"
+      ],
+      "requirements": ["Any BLE capable board", "Printer serial or USB connection", "Client app with BLE GATT write support"],
+      "transports": [
+        { "id": "serial", "name": "UART / COM port (TTL)", "default": true, "description": "Printer on TTL serial, BLE on the air.", "langs": ["escpos", "zpl", "tspl", "escp", "plain"] },
+        { "id": "usbhost", "name": "USB host + BLE", "description": "USB printer, BLE output.", "langs": ["escpos", "zpl", "tspl", "escp", "plain"] }
+      ],
+      "wiring": {
+        "serial": {
+          "title": "BLE bridge wiring",
+          "summary": "Identical to the Bluetooth SPP wiring - only the printer side is connected.",
+          "power": "Board 5V USB, printer on its own supply.",
+          "links": [
+            { "signal": "TX", "board": "@uartTx", "printer": "Printer RX", "cable": "Jumper wire", "required": true },
+            { "signal": "RX", "board": "@uartRx", "printer": "Printer TX", "cable": "Jumper wire", "required": true },
+            { "signal": "GND", "board": "@gnd", "printer": "Printer GND", "cable": "Jumper wire", "required": true }
+          ],
+          "cables": [{ "qty": 3, "item": "Dupont jumper wires" }],
+          "steps": [
+            "Wire TX/RX/GND to the printer.",
+            "Flash the BLE build and set the advertising name in the web app.",
+            "Connect from the client app to the GATT UART service and write print data to RX.",
+            "Check the live byte counter in the web dashboard."
+          ],
+          "prerequisites": ["BLE capable board", "Client app that supports GATT writes"],
+          "warnings": ["BLE MTU limits each write to 20-512 bytes - the firmware reassembles the stream automatically."]
+        },
+        "usbhost": {
+          "title": "USB printer + BLE output",
+          "summary": "USB printer into the board, BLE to the client.",
+          "power": "Powered hub recommended.",
+          "links": [
+            { "signal": "USB 5V", "board": "@usb5v", "printer": "USB VBUS", "cable": "USB cable", "required": true },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "USB D-", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "USB D+", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "USB GND", "cable": "USB cable", "required": true }
+          ],
+          "cables": [{ "qty": 1, "item": "USB printer cable" }],
+          "steps": ["Plug the printer into the board.", "Select USB host in the web app.", "Connect over BLE and print."],
+          "prerequisites": ["Board with USB OTG host support"],
+          "warnings": []
+        }
+      },
+      "firmware": { "env": "esp32", "variant": "ble", "assets": "web" }
+    },
+    {
+      "id": "print-server-usbhost",
+      "name": "USB Host Print Server",
+      "tagline": "Plug the printer into the board - Wi-Fi and USB host in one build.",
+      "summary": "Dedicated USB host build: the board enumerates the printer, exposes it on TCP 9100 and the web app, and can also serve the printer to Bluetooth hosts. Ideal for modern USB thermal printers that have no serial port.",
+      "category": "printer-bridge",
+      "capabilities": ["wifi", "usbHost", "web-ui", "tcp9100", "mdns", "ota", "label-designer", "troubleshooting", "api"],
+      "requires": { "families": ["esp32", "rpi"], "radios": ["usbHost"] },
+      "features": [
+        "USB printer enumeration with VID/PID detection and automatic language profile",
+        "Bulk endpoint streaming with flow control and 4 kB buffering",
+        "USB printer reset and port cycling from the web app (fixes stuck jobs)",
+        "Full web app, TCP 9100 and mDNS as in the Wi-Fi build"
+      ],
+      "requirements": ["Board with USB OTG host (ESP32-S3/S2, Raspberry Pi)", "5V 2A supply or powered hub", "USB printer cable"],
+      "transports": [
+        { "id": "usbhost", "name": "USB host (printer USB cable)", "default": true, "description": "The printer keeps its own cable; no soldering to the printer board.", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] }
+      ],
+      "wiring": {
+        "usbhost": {
+          "title": "USB host wiring",
+          "summary": "One USB cable between the printer and the board - no printer disassembly.",
+          "power": "Powered hub or 5V/2A supply; laser printers must never be powered from the board.",
+          "links": [
+            { "signal": "USB 5V (VBUS)", "board": "@usb5v", "printer": "USB VBUS", "cable": "USB cable", "required": true },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "USB D-", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "USB D+", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "USB GND", "cable": "USB cable", "required": true }
+          ],
+          "cables": [
+            { "qty": 1, "item": "USB printer cable (A-B or C)" },
+            { "qty": 1, "item": "Powered USB 2.0 hub", "note": "Keeps the board rail stable during thermal print peaks" },
+            { "qty": 1, "item": "USB-C OTG adapter", "note": "Only needed on micro-USB boards" }
+          ],
+          "steps": [
+            "Connect the printer USB cable to the board native USB port.",
+            "Power the board and watch the web app Device page: the printer appears with its VID/PID.",
+            "Choose the language profile (auto-detected from the USB descriptor where possible).",
+            "Print a self test page, then add the printer to the POS app as a network printer on port 9100."
+          ],
+          "prerequisites": ["ESP32-S3/S2 or Raspberry Pi", "USB printer cable"],
+          "warnings": [
+            "Some USB printers present a proprietary interface instead of the standard printer class; those need the Raspberry Pi + CUPS build.",
+            "Keep the USB cable shorter than 1.5 m for reliable enumeration."
+          ]
+        }
+      },
+      "firmware": { "env": "esp32", "variant": "usbhost", "assets": "web" }
+    },
+    {
+      "id": "print-server-serial",
+      "name": "Serial / COM Port Bridge",
+      "tagline": "Raw serial to TCP: the universal COM-port-to-network adapter.",
+      "summary": "A transparent bidirectional serial bridge: anything you send to TCP 9100 or the web console goes out of the printer port byte for byte, and printer replies are streamed back. Perfect for diagnosing a printer, driving it from legacy software, or writing your own protocol.",
+      "category": "printer-bridge",
+      "capabilities": ["wifi", "serial-passthrough", "tcp9100", "web-console", "api", "raw-terminal"],
+      "requires": { "families": ["esp32", "esp8266", "rpi"] },
+      "features": [
+        "Transparent TCP <-> UART bridge with configurable baud, data bits, parity and stop bits",
+        "Web serial console with hex/text send, timestamps and receive buffer download",
+        "Line-ending and delay injection for old firmware that needs pacing",
+        "Byte counters and CRC error detection on the serial line"
+      ],
+      "requirements": ["Any supported board", "3.3V/5V level matching", "Printer serial pinout"],
+      "transports": [
+        { "id": "serial", "name": "UART / COM port (TTL)", "default": true, "description": "Direct TTL serial connection to the printer.", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] },
+        { "id": "usb-bridge", "name": "USB-serial adapter (COM port passthrough)", "description": "Use a USB-serial adapter as the printer port (Raspberry Pi: /dev/ttyUSB0).", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] }
+      ],
+      "wiring": {
+        "serial": {
+          "title": "Serial bridge wiring",
+          "summary": "Three wires (TX, RX, GND) plus optional flow control.",
+          "power": "Board and printer each on their own supply; only GND is shared.",
+          "links": [
+            { "signal": "TX", "board": "@uartTx", "printer": "Printer RX", "cable": "Jumper wire", "required": true },
+            { "signal": "RX", "board": "@uartRx", "printer": "Printer TX", "cable": "Jumper wire", "required": true },
+            { "signal": "GND", "board": "@gnd", "printer": "Printer GND", "cable": "Jumper wire", "required": true },
+            { "signal": "RTS", "board": "@spare2", "printer": "Printer CTS", "cable": "Jumper wire", "required": false, "note": "Enable hardware flow control for large print jobs." }
+          ],
+          "cables": [{ "qty": 3, "item": "Dupont jumper wires" }, { "qty": 1, "item": "USB-serial TTL adapter", "note": "Handy for first-time baud rate discovery" }],
+          "steps": [
+            "Wire TX, RX and GND between the board and the printer.",
+            "Open the web serial console and set the baud rate (try 9600, 19200, 38400, 115200).",
+            "Send 1B 40 (ESC @) as hex and look for the printer initialising.",
+            "Save the profile and connect legacy software to port 9100."
+          ],
+          "prerequisites": ["Serial pinout for the printer", "Level shifter for 5V TTL printers"],
+          "warnings": ["Do not connect RS-232 (+/-12V) directly to the board."]
+        },
+        "usb-bridge": {
+          "title": "USB-serial adapter as the printer port",
+          "summary": "A USB-serial cable is the printer link; the board still bridges it to the network.",
+          "power": "The adapter is powered from the board USB port.",
+          "links": [
+            { "signal": "USB 5V", "board": "@usb5v", "printer": "Adapter VBUS", "cable": "USB cable", "required": true },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "Adapter D-", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "Adapter D+", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "Adapter GND", "cable": "USB cable", "required": true }
+          ],
+          "cables": [{ "qty": 1, "item": "USB to serial adapter (FTDI/CH340)" }, { "qty": 1, "item": "DB9 or terminal block adapter" }],
+          "steps": [
+            "Plug the adapter into the board USB port.",
+            "Select the adapter in the web app port list (/dev/ttyUSB0 on Linux).",
+            "Match the baud rate and open the serial console."
+          ],
+          "prerequisites": ["Raspberry Pi recommended (USB host support)"],
+          "warnings": []
+        }
+      },
+      "firmware": { "env": "esp32", "variant": "serial", "assets": "web" }
+    },
+    {
+      "id": "print-server-hybrid",
+      "name": "Hybrid Print Server (Wi-Fi + Bluetooth + USB host)",
+      "tagline": "Every transport in one build - enterprise ready.",
+      "summary": "The all-in-one build for ESP32-S3 class boards and Raspberry Pi: Wi-Fi web app, TCP 9100, mDNS, Bluetooth SPP/BLE, USB host printer support and serial fallback, with the full maintenance console and label designer.",
+      "category": "printer-bridge",
+      "capabilities": ["wifi", "ble", "usbHost", "web-ui", "tcp9100", "mdns", "ota", "label-designer", "troubleshooting", "api", "webhook", "sse", "job-queue"],
+      "requires": { "families": ["esp32", "rpi"], "radios": ["wifi", "usbHost"] },
+      "features": [
+        "All transports at once: Wi-Fi, TCP 9100, mDNS, BLE, USB host and serial fallback",
+        "Automatic transport failover: if Wi-Fi drops, BLE and the serial port keep working",
+        "Enterprise extras: API keys, webhooks, job history, remote reboot, OTA, config backup",
+        "Full label designer and maintenance console served from the device"
+      ],
+      "requirements": ["ESP32-S3 / ESP32-S2 / Raspberry Pi (needs Wi-Fi + USB host)", "5V 2A supply", "USB printer cable or TTL serial wires"],
+      "transports": [
+        { "id": "usbhost", "name": "USB host (printer USB cable)", "default": true, "description": "USB printer plus Wi-Fi, BLE and serial fallback.", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] },
+        { "id": "serial", "name": "UART / COM port (TTL)", "description": "Serial printer with Wi-Fi + BLE front ends.", "langs": ["escpos", "zpl", "tspl", "epl", "cpcl", "starprnt", "escp", "plain"] }
+      ],
+      "wiring": {
+        "usbhost": {
+          "title": "Hybrid USB host wiring",
+          "summary": "USB printer cable plus (optionally) the serial fallback wires.",
+          "power": "Powered hub or 5V/2A supply.",
+          "links": [
+            { "signal": "USB 5V (VBUS)", "board": "@usb5v", "printer": "USB VBUS", "cable": "USB cable", "required": true },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "USB D-", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "USB D+", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "USB GND", "cable": "USB cable", "required": true },
+            { "signal": "TX (fallback)", "board": "@uartTx", "printer": "Printer RX", "cable": "Jumper wire", "required": false, "note": "Optional: keeps printing if the USB link fails." },
+            { "signal": "RX (fallback)", "board": "@uartRx", "printer": "Printer TX", "cable": "Jumper wire", "required": false }
+          ],
+          "cables": [{ "qty": 1, "item": "USB printer cable" }, { "qty": 1, "item": "Powered USB hub" }, { "qty": 2, "item": "Dupont jumper wires (optional serial fallback)" }],
+          "steps": [
+            "Connect the USB printer cable to the board.",
+            "Optionally wire the serial fallback pair.",
+            "In the web app enable the transports you want and set the failover order.",
+            "Create an API key for the POS system and add the printer as network printer port 9100."
+          ],
+          "prerequisites": ["ESP32-S3/S2 or Raspberry Pi", "Wi-Fi network name and password"],
+          "warnings": ["Running Wi-Fi, USB host and BLE at once peaks around 900 mA - use a 2A supply."]
+        },
+        "serial": {
+          "title": "Hybrid serial wiring",
+          "summary": "TTL serial printer with Wi-Fi, BLE and USB-serial fallback available.",
+          "power": "Board 5V 2A, printer on its own adapter.",
+          "links": [
+            { "signal": "TX", "board": "@uartTx", "printer": "Printer RX", "cable": "Jumper wire", "required": true },
+            { "signal": "RX", "board": "@uartRx", "printer": "Printer TX", "cable": "Jumper wire", "required": true },
+            { "signal": "GND", "board": "@gnd", "printer": "Printer GND", "cable": "Jumper wire", "required": true }
+          ],
+          "cables": [{ "qty": 3, "item": "Dupont jumper wires" }],
+          "steps": ["Wire TX/RX/GND.", "Set the baud rate and language in the web app.", "Enable Wi-Fi and BLE in the transports panel."],
+          "prerequisites": ["Printer serial pinout"],
+          "warnings": ["Level shift 5V TTL printers."]
+        }
+      },
+      "firmware": { "env": "esp32", "variant": "hybrid", "assets": "web" }
+    },
+    {
+      "id": "print-server-cups",
+      "name": "Raspberry Pi CUPS Bridge",
+      "tagline": "Full Linux print server: vendor drivers, AirPrint, IPP Everywhere.",
+      "summary": "Installs the Arsin print server plus CUPS on Raspberry Pi OS, so printers that need a real driver (inkjets, lasers, GDI-only units) become network and AirPrint printers. The Arsin web app drives CUPS, adds the label designer, nozzle/head maintenance and the job history.",
+      "category": "printer-bridge",
+      "capabilities": ["wifi", "usbHost", "ethernet", "cups", "ipp", "airprint", "web-ui", "label-designer", "troubleshooting", "api", "samba-share"],
+      "requires": { "families": ["rpi"] },
+      "features": [
+        "CUPS with IPP Everywhere, AirPrint and Samba (Windows) sharing out of the box",
+        "Vendor .ppd driver support for inkjets and lasers",
+        "Arsin web app on top: label designer, maintenance console, job history, users and API keys",
+        "Automatic printer detection (USB, network, serial) with a guided driver picker",
+        "Ink/toner level reading where the driver exposes it, plus nozzle check and cleaning routines"
+      ],
+      "requirements": [
+        "Raspberry Pi (Zero 2 W and up recommended) with Raspberry Pi OS Lite",
+        "microSD card 8 GB or larger",
+        "5V 2A (Zero) / 5V 3A (Pi 4/5) power supply",
+        "Printer with USB or network interface"
+      ],
+      "transports": [
+        { "id": "usbhost", "name": "USB host (printer USB cable)", "default": true, "description": "Plug the printer into the Pi and CUPS does the rest.", "langs": ["escpos", "zpl", "tspl", "escp", "plain", "cups"] },
+        { "id": "network", "name": "Network printer (Ethernet / Wi-Fi)", "description": "The printer is already on the network; the bridge adds the designer, maintenance console and job history.", "langs": ["escpos", "zpl", "tspl", "escp", "plain", "cups"] },
+        { "id": "serial", "name": "Serial / USB-serial adapter", "description": "TTL serial or a USB-serial adapter on /dev/ttyUSB0.", "langs": ["escpos", "zpl", "tspl", "escp", "plain"] }
+      ],
+      "wiring": {
+        "usbhost": {
+          "title": "Raspberry Pi USB printer wiring",
+          "summary": "No wiring at all beyond the printer USB cable - the Pi supplies the port.",
+          "power": "Pi on its own 5V supply; the printer keeps its mains adapter.",
+          "links": [
+            { "signal": "USB 5V", "board": "@usb5v", "printer": "USB VBUS", "cable": "USB cable", "required": true, "note": "The Pi USB port provides up to 1.2 A total across all ports on Pi 4/5." },
+            { "signal": "USB D-", "board": "@usbDm", "printer": "USB D-", "cable": "USB cable", "required": true },
+            { "signal": "USB D+", "board": "@usbDp", "printer": "USB D+", "cable": "USB cable", "required": true },
+            { "signal": "USB GND", "board": "@usbGnd", "printer": "USB GND", "cable": "USB cable", "required": true }
+          ],
+          "cables": [
+            { "qty": 1, "item": "USB printer cable" },
+            { "qty": 1, "item": "microSD card 16 GB (Class 10 / A1)" },
+            { "qty": 1, "item": "Powered USB hub", "note": "For laser printers or several devices" }
+          ],
+          "steps": [
+            "Flash Raspberry Pi OS Lite to the microSD card with Raspberry Pi Imager and set the Wi-Fi, hostname and SSH in the advanced options.",
+            "Boot the Pi, connect over SSH and run the one-line installer (see the install page).",
+            "Open http://arsin_print_server.local and follow the first-run wizard.",
+            "Add the printer: the wizard lists USB printers and suggests drivers (including raw for ESC/POS/ZPL units).",
+            "Enable AirPrint/IPP sharing if phones and tablets should print directly."
+          ],
+          "prerequisites": ["Raspberry Pi OS Lite 64-bit", "Network access for the installer", "SSH or a monitor+keyboard for the first boot"],
+          "warnings": [
+            "GDI/winprinters (very cheap lasers with no PPD) still cannot work - use a raw ESC/POS/ZPL printer for those.",
+            "Keep the Pi on a UPS or clean power: a brown-out during a print job can wedge the USB bus."
+          ]
+        },
+        "network": {
+          "title": "Network printer + Pi bridge",
+          "summary": "The Pi talks to the printer over the LAN; no direct wiring.",
+          "power": "Pi on 5V, printer on its own supply.",
+          "links": [
+            { "signal": "Ethernet", "board": "@spare1 (or on-board RJ45)", "printer": "Printer RJ45 / Wi-Fi", "cable": "Cat5e patch cable", "required": false, "note": "Only needed for wired printers; Wi-Fi printers just need the IP address." }
+          ],
+          "cables": [{ "qty": 1, "item": "Cat5e/6 patch cable (wired printers only)" }],
+          "steps": [
+            "Give the printer a static IP (or DHCP reservation).",
+            "Enter that IP in the Arsin wizard as a socket:// printer.",
+            "Optionally enable AirPrint sharing from the Pi."
+          ],
+          "prerequisites": ["Printer IP address", "Network access"],
+          "warnings": []
+        },
+        "serial": {
+          "title": "Raspberry Pi serial wiring (40-pin header)",
+          "summary": "GPIO14/GPIO15 (physical pins 8 and 10) as /dev/serial0.",
+          "power": "Pi on 5V; printer on its own adapter; share only GND.",
+          "links": [
+            { "signal": "TX", "board": "@uartTx", "printer": "Printer RX", "cable": "Jumper wire", "required": true, "note": "Enable the serial port in raspi-config (login shell disabled, hardware enabled)." },
+            { "signal": "RX", "board": "@uartRx", "printer": "Printer TX", "cable": "Jumper wire", "required": true },
+            { "signal": "GND", "board": "@gnd", "printer": "Printer GND", "cable": "Jumper wire", "required": true }
+          ],
+          "cables": [{ "qty": 3, "item": "Dupont jumper wires (female-female for the 40-pin header)" }],
+          "steps": [
+            "Run sudo raspi-config > Interface Options > Serial Port: login shell off, hardware on.",
+            "Wire pin 8 (GPIO14 TX) to printer RX, pin 10 (GPIO15 RX) to printer TX and pin 6 to GND.",
+            "Select /dev/serial0 in the Arsin wizard and set the baud rate.",
+            "Send the self test from the maintenance page."
+          ],
+          "prerequisites": ["raspi-config serial enabled", "Level shifter for 5V TTL printers"],
+          "warnings": ["The Pi UART is 3.3V only."]
+        }
+      },
+      "firmware": { "env": "rpi", "variant": "cups", "assets": "web" }
+    }
+  ]
+}
