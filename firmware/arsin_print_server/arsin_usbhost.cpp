@@ -336,9 +336,6 @@ void usbTask(void* arg) {
     vTaskDelete(nullptr);
     return;
   }
-  g_libInstalled = true;
-
-  g_libInstalled = true;
 
   usb_host_client_config_t clientConfig = {};
   clientConfig.is_synchronous = false;

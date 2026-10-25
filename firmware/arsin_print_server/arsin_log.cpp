@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 #include "arsin_json.h"
 
@@ -102,6 +103,7 @@ void arsinLogWrite(ArsinLogLevel level, const char* fmt, ...) {
 
 size_t arsinLogSince(uint32_t since, char* out, size_t cap, uint32_t* next) {
   JsonOut json(out, cap);
+  json.beginObject();
   json.beginArrayAt("lines");
   size_t written = 0;
   uint32_t maxSeq = since;
@@ -119,6 +121,8 @@ size_t arsinLogSince(uint32_t since, char* out, size_t cap, uint32_t* next) {
     if (e.seq > maxSeq) maxSeq = e.seq;
   }
   json.endArray();
+  json.kvULong("next", (written == 0) ? (unsigned long)since : (unsigned long)maxSeq);
+  json.endObject();
   if (next) *next = (written == 0) ? since : maxSeq;
   return written;
 }

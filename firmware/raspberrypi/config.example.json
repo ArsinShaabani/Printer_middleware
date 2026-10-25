@@ -1,0 +1,84 @@
+{
+  "device": {
+    "name": "pi-test",
+    "owner": "",
+    "location": "",
+    "notes": ""
+  },
+  "ap": {
+    "enabled": false,
+    "ssid": "arsin_print_server",
+    "password": "arsin1234",
+    "ip": "192.168.4.1"
+  },
+  "sta": {
+    "enabled": true,
+    "ssid": "",
+    "password": "",
+    "dhcp": true,
+    "ip": "",
+    "gateway": "",
+    "subnet": "",
+    "dns": "",
+    "hostname": "arsin-print-server",
+    "alwaysReconnect": true,
+    "saved": []
+  },
+  "printer": {
+    "name": "Generic ESC/POS",
+    "model": "",
+    "language": "escpos",
+    "profile": "receipt",
+    "transport": "usbhost",
+    "device": "/dev/usb/lp0",
+    "cupsQueue": "",
+    "networkHost": "",
+    "networkPort": 9100,
+    "baud": 9600,
+    "dataBits": 8,
+    "parity": "none",
+    "stopBits": 1,
+    "flowControl": "none",
+    "widthMm": 80,
+    "dpi": 203,
+    "cut": true,
+    "charset": "cp437",
+    "darkness": 8,
+    "speed": 4,
+    "mediaType": "gap",
+    "strobeDelayUs": 3
+  },
+  "bt": {
+    "enabled": false,
+    "name": "arsin_print_server",
+    "pin": "0000",
+    "ble": false
+  },
+  "usbHost": {
+    "enabled": true,
+    "autoDetect": true,
+    "maxPowerMa": 500
+  },
+  "network": {
+    "rawPort": 9100,
+    "webPort": 8099,
+    "mdns": true,
+    "telnetDebug": false,
+    "keepAlive": true
+  },
+  "security": {
+    "webPassword": "",
+    "apiKey": "",
+    "allowCors": true
+  },
+  "logging": {
+    "level": "info",
+    "bufferLines": 200
+  },
+  "cloud": {
+    "webhookUrl": "",
+    "onJob": false,
+    "ntpServer": "pool.ntp.org",
+    "timezone": "UTC"
+  }
+}

@@ -1,0 +1,40 @@
+[Unit]
+Description=Arsin Print Server (Raspberry Pi print bridge)
+Documentation=file:/opt/arsin-print-server/README.md
+After=network-online.target
+Wants=network-online.target
+# Optional: start after CUPS when the CUPS transport is used
+After=cups.service
+
+[Service]
+Type=simple
+User=arsin-print
+Group=arsin-print
+SupplementaryGroups=dialout lp
+WorkingDirectory=/opt/arsin-print-server
+ExecStart=/usr/bin/python3 /opt/arsin-print-server/arsin_print_server.py --config /etc/arsin-print-server/config.json
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arsin-print-server
+
+# Hardening: the service only needs its own config directory and the printer
+# devices, so everything else can stay read-only.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/etc/arsin-print-server
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

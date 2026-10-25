@@ -9,6 +9,7 @@
 
 #include <Arduino.h>
 #include <string.h>
+#include <strings.h>
 
 #include "arsin_config.h"
 #include "arsin_log.h"

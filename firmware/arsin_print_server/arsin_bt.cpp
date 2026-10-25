@@ -8,6 +8,7 @@
 #include "arsin_bt.h"
 
 #include <Arduino.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "arsin_config.h"

@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 #include "arsin_config.h"
 #include "arsin_json.h"
@@ -245,6 +246,12 @@ bool buildEscPos(const char* action, const Params& p, CmdBuilder& b, char* note,
     b.add(ESC); b.add(0x40);
     escposBarcodeSheet(b);
     snprintf(note, noteCap, "CODE39 + EAN13 + CODE128 + QR verification sheet");
+  } else {
+    return false;
+  }
+  return true;
+}
+
 /* ---------------------------------------------------------------------- ZPL */
 
 void zplPattern(CmdBuilder& b, const char* title, int rows) {

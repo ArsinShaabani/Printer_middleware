@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "arsin_json.h"
 #include "arsin_log.h"
@@ -110,6 +111,12 @@ void configDefaults(ArsinConfig& cfg) {
 
   copyStr(cfg.logLevel, sizeof(cfg.logLevel), "info");
   cfg.logBufferLines = 120;
+
+  copyStr(cfg.webhookUrl, sizeof(cfg.webhookUrl), "");
+  cfg.webhookOnJob = false;
+  copyStr(cfg.ntpServer, sizeof(cfg.ntpServer), "pool.ntp.org");
+  copyStr(cfg.timezone, sizeof(cfg.timezone), "UTC");
+}
 
 const char* configValidateBaud(uint32_t baud) {
   static const uint32_t allowed[] = {4800, 9600, 19200, 38400, 57600, 74880, 115200, 230400, 250000, 460800, 921600};
