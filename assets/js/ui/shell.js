@@ -285,6 +285,8 @@ function currentPage() {
 /** Render the site header + footer into the page. */
 export function renderShell() {
   const page = currentPage();
+  // Replace any previously rendered shell (language/theme re-render).
+  for (const old of $$('.site-header, .footer')) old.remove();
   const header = el('header', { class: 'site-header' });
   const bar = el('div', { class: 'bar' });
   const brand = el('a', { class: 'brand', href: 'index.html' }, [
@@ -340,4 +342,4 @@ export function initShell() {
   });
 }
 
-export { t, setLanguage, getLanguage, applyTranslations };
+export { t, setLanguage, getLanguage, applyTranslations, onChange };

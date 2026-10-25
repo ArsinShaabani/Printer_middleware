@@ -1,5 +1,5 @@
 /** Home page controller: catalog statistics, app cards and the board table. */
-import { initShell, loadCatalog, $, el, esc, t } from './shell.js';
+import { initShell, loadCatalog, $, el, esc, t, onChange } from './shell.js';
 import { groupByFamily, compatibility } from '../core/catalog.js';
 import { LANGUAGES, DEVICE_PROFILES } from '../core/commands.js';
 import { SYMBOLOGIES } from '../core/barcode.js';
@@ -86,7 +86,7 @@ function renderBoards() {
     return;
   }
   const table = el('table', {}, [
-    el('thead', {}, [el('tr', {}, ['Board', 'MCU', t('common.radios'), t('common.power'), 'Firmware', ''].map((h) => el('th', { text: h })))]),
+    el('thead', {}, [el('tr', {}, [t('common.board'), t('common.mcu'), t('common.radios'), t('common.power'), 'Firmware', ''].map((h) => el('th', { text: h })))]),
     el('tbody', {}, rows)
   ]);
   host.innerHTML = '';
@@ -114,6 +114,11 @@ function wireFilter() {
     renderFamilies();
     renderBoards();
     wireFilter();
+    onChange(() => {
+      renderApps();
+      renderFamilies();
+      renderBoards();
+    });
   } catch (e) {
     const host = document.getElementById('app-cards');
     if (host) host.innerHTML = '<div class="callout danger">Could not load the catalog: ' + esc(e.message) + '</div>';

@@ -1,3 +1,5 @@
+/** Reference cross-check: compares every encoder in assets/js/core/barcode.js with
+ *  bwip-js (dev dependency). Run: node tools/reference-check-barcode.mjs */
 import bwipjs from 'bwip-js';
 import * as bc from '../assets/js/core/barcode.js';
 

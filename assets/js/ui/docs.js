@@ -1,5 +1,5 @@
 /** Documentation page: wiring library, language reference, API and FAQ. */
-import { initShell, loadCatalog, $, el, esc, t, download, copyText } from './shell.js';
+import { initShell, loadCatalog, $, el, esc, t, download, copyText, onChange } from './shell.js';
 import { resolveWiring, boardsForApp, compatibility } from '../core/catalog.js';
 import { renderWiringSvg, wiringToText } from '../core/wiring.js';
 import { LANGUAGES, ACTIONS, actionsForLanguage, buildCommand } from '../core/commands.js';
@@ -322,6 +322,14 @@ function renderFaq() {
   } catch (e) {
     $('#wiring-doc').innerHTML = '<div class="callout danger">Could not load the catalog: ' + esc(e.message) + '</div>';
   }
+  onChange(() => {
+    renderLanguages();
+    renderApi();
+    renderBoardsDoc();
+    renderBuild();
+    renderFaq();
+    renderWiringDoc();
+  });
   document.addEventListener('click', (e) => {
     const link = e.target.closest('[data-goto]');
     if (!link) return;

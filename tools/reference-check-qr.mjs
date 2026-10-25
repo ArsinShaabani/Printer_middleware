@@ -1,3 +1,5 @@
+/** Reference cross-check: compares the QR encoder with the qrcode dev dependency,
+ *  reading the ECC level and mask out of the reference matrix. Run: node tools/reference-check-qr.mjs */
 import bwipjs from 'bwip-js';
 import { qrEncode } from '../assets/js/core/qr.js';
 
