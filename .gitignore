@@ -25,3 +25,7 @@ __pycache__/
 
 # CI workflows are published from ci/github-workflows (see tools/install-workflows.mjs)
 .github/workflows/
+
+# arduino-cli toolchain used for local firmware verification
+.arduino15/
+.arduino-user/
