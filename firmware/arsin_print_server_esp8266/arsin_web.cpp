@@ -53,13 +53,36 @@
   #define ARSIN_SSE_SUPPORTED 0
 #endif
 
+/* Streaming request bodies need the "raw body" handler API of arduino-esp32
+ * core 3.x: WebServer::_parseRequest() then hands a POST body over in
+ * HTTP_RAW_BUFLEN slices instead of buffering all of it into arg("plain").
+ * ESP32 core 2.x and the ESP8266 core have no equivalent, so there the body is
+ * streamed from the socket whenever the core leaves it alone (chunked or close
+ * delimited transfers) and the bounded buffered path stays in place otherwise -
+ * see handlePrint() and ArsinPrintRawHandler below. */
+#if ARSIN_SSE_SUPPORTED
+  #define ARSIN_RAW_BODY_SUPPORTED 1
+#else
+  #define ARSIN_RAW_BODY_SUPPORTED 0
+#endif
+
 namespace {
 
 #if defined(ARDUINO_ARCH_ESP8266)
-const size_t kBodyMax = 4096;   /* /api/print raw bodies are RAM bound here */
+const size_t kBodyMax = 4096;    /* largest body the ESP8266 core can buffer    */
+const size_t kStreamChunk = 512; /* socket read window - ESP8266 RAM is tight   */
 #else
-const size_t kBodyMax = 65536;
+const size_t kBodyMax = 65536;   /* largest body the ESP32 core buffers         */
+const size_t kStreamChunk = 1024;
 #endif
+/* /api/print never holds more than one socket chunk.  The only other buffer is
+ * the bounded repeat spool, and that is allocated per job solely for the
+ * copies > 1 case, because a streamed body cannot be read a second time. */
+const size_t kSpoolMax = kBodyMax;
+const uint32_t kStreamIdleMs = 5000;    /* no byte from the peer for this long  */
+const uint32_t kStreamTotalMs = 120000; /* whole job guard (512 kB ~ 45 s)      */
+const uint32_t kPrintWriteMs = 4000;    /* printerWriteAll budget per chunk     */
+const uint32_t kCutWriteMs = 1000;
 const uint32_t kSseIntervalMs = 2000;
 const size_t kSseMaxClients = 3;
 const uint32_t kRawClientIdleMs = 15000;
@@ -124,11 +147,13 @@ void sendError(int code, const char* message) {
   sendJson(code, body);
 }
 
-bool apiKeyOk() {
+bool apiKeyMatches(ArsinWebServer& server) {
   if (g_config.apiKey[0] == 0) return true;
-  if (!g_server.hasHeader("X-Api-Key")) return false;
-  return strcmp(g_server.header("X-Api-Key").c_str(), g_config.apiKey) == 0;
+  if (!server.hasHeader("X-Api-Key")) return false;
+  return strcmp(server.header("X-Api-Key").c_str(), g_config.apiKey) == 0;
 }
+
+bool apiKeyOk() { return apiKeyMatches(g_server); }
 
 /** State changing endpoints are protected by security.apiKey. */
 bool requireWriteAuth() {
@@ -346,8 +371,289 @@ void handleConfigPost() {
   sendJson(200, g_small);
 }
 
+/* ------------------------------------------------- streamed print uploads */
+
+/* One /api/print job in flight.  /api/print never holds more than one socket
+ * chunk (kStreamChunk); the only other buffer is the bounded repeat spool, and
+ * that exists solely for the copies > 1 case.  A 512 kB label therefore costs
+ * about 1 kB of RAM instead of the whole payload. */
+struct PrintJob {
+  bool active;       /* a body is being pushed to the printer right now     */
+  bool coreStreamed; /* the ESP32 raw-body callback owns the socket         */
+  bool authorised;   /* the request passed the X-Api-Key check              */
+  bool stalled;      /* printer queue did not drain within kPrintWriteMs    */
+  bool truncated;    /* body ended before Content-Length was satisfied      */
+  bool overflow;     /* body larger than the repeat spool                   */
+  uint32_t received; /* bytes read from the wire                            */
+  uint32_t written;  /* bytes accepted by the printer queue                 */
+  size_t spooled;    /* bytes kept for the extra copies                     */
+  uint8_t* spool;
+  char jobId[20];
+  char lang[16];
+  bool wantCut;
+  int copies;
+};
+
+PrintJob g_job;
+
+/** Release the job and its optional spool - safe to call at any time. */
+void printJobClear() {
+  if (g_job.spool) free(g_job.spool); /* free(nullptr) is a no-op */
+  memset(&g_job, 0, sizeof(g_job));
+  g_job.copies = 1;
+}
+
+/** Arm a job before its body arrives.  `coreStreamed` selects which code path
+ *  finishes it: the ESP32 raw-body callback or handlePrint() itself. */
+void printJobBegin(bool coreStreamed, const char* lang, bool wantCut, int copies, const char* jobId) {
+  printJobClear();
+  g_job.active = true;
+  g_job.coreStreamed = coreStreamed;
+  g_job.authorised = true;
+  g_job.wantCut = wantCut;
+  g_job.copies = (copies < 1) ? 1 : copies;
+  snprintf(g_job.jobId, sizeof(g_job.jobId), "%s", jobId ? jobId : "");
+  snprintf(g_job.lang, sizeof(g_job.lang), "%s", (lang && lang[0]) ? lang : "escpos");
+  if (g_job.copies > 1) {
+    /* A streamed body cannot be read a second time, so the extra copies are
+     * replayed from this bounded spool.  When it cannot be allocated, or the
+     * job turns out to be larger than the spool, the job is printed once -
+     * see printJobFinish(). */
+    g_job.spool = (uint8_t*)malloc(kSpoolMax);
+    if (!g_job.spool) LOGW("print: no %u byte repeat spool - only one copy", (unsigned)kSpoolMax);
+  }
+}
+
+/** Forward one chunk with the queue back-pressure behaviour of the buffered
+ *  path.  Returns false when the printer queue refused the data. */
+bool printJobPush(const uint8_t* data, size_t len) {
+  if (!g_job.active) return false;
+  if (!len) return true;
+  const size_t sent = printerWriteAll(data, len, kPrintWriteMs);
+  g_job.received += (uint32_t)len;
+  g_job.written += (uint32_t)sent;
+  if (sent < len) {
+    g_job.stalled = true;
+    printerSetError("printer queue stalled");
+    LOGW("print: %u of %u byte(s) refused by the printer queue", (unsigned)(len - sent), (unsigned)len);
+    return false;
+  }
+  if (g_job.spool) {
+    if (g_job.spooled + len <= kSpoolMax) {
+      memcpy(g_job.spool + g_job.spooled, data, len);
+      g_job.spooled += len;
+    } else {
+      g_job.overflow = true;
+    }
+  }
+  return true;
+}
+
+/** Read up to `want` bytes from the socket, waiting at most `idleMs` for the
+ *  first one.  Returns the byte count; 0 means the peer went quiet or closed,
+ *  which for a close delimited body is the end of the transfer. */
+size_t streamReadChunk(WiFiClient& client, uint8_t* buf, size_t want, uint32_t idleMs) {
+  const uint32_t started = millis();
+  while ((uint32_t)(millis() - started) <= idleMs) {
+    const int available = client.available();
+    if (available > 0) {
+      size_t n = (size_t)available;
+      if (n > want) n = want;
+      const int got = client.read(buf, n);
+      return (got > 0) ? (size_t)got : 0;
+    }
+    if (!client.connected()) return 0;
+    printerLoop(); /* keep the printer queue draining while we wait */
+    yield();
+    delay(1);      /* never longer than 50 ms, so the watchdog stays happy */
+  }
+  return 0;
+}
+
+/** Read one CRLF terminated line (chunk size line or trailer).  Returns the
+ *  line length without CR/LF, or -1 when the peer stopped answering. */
+int streamReadLine(WiFiClient& client, char* out, size_t cap, uint32_t idleMs) {
+  size_t len = 0;
+  const uint32_t started = millis();
+  while ((uint32_t)(millis() - started) <= idleMs) {
+    const int available = client.available();
+    if (available > 0) {
+      const int c = client.read();
+      if (c < 0) break;
+      if (c == '\n') {
+        if (len && out[len - 1] == '\r') len--;
+        out[len] = 0;
+        return (int)len;
+      }
+      if (len + 1 < cap) out[len++] = (char)c; /* overlong line: keep reading */
+    } else if (!client.connected()) {
+      return -1;
+    } else {
+      printerLoop();
+      yield();
+      delay(1);
+    }
+  }
+  if (len < cap) out[len] = 0;
+  return -1;
+}
+
+/** Decode a `Transfer-Encoding: chunked` body and forward it chunk by chunk.
+ *  The web application always sends a Content-Length, but a streaming client
+ *  (browser ReadableStream body, `curl -T -`) does not, and forwarding the
+ *  chunk framing to a printer would be worse than refusing the job. */
+bool streamChunkedBody(WiFiClient& client, uint32_t started) {
+  uint8_t buf[kStreamChunk];
+  char line[24];
+  for (;;) {
+    if ((uint32_t)(millis() - started) > kStreamTotalMs) return false;
+    const int n = streamReadLine(client, line, sizeof(line), kStreamIdleMs);
+    if (n < 0) return false;
+    if (n == 0) continue; /* tolerate a stray CRLF between chunks */
+    char* end = nullptr;
+    const unsigned long size = strtoul(line, &end, 16);
+    if (end == line || size > 0x00400000UL) return false; /* not a chunk size */
+    if (size == 0) {
+      /* terminal chunk - swallow the bounded trailer section */
+      for (int i = 0; i < 8; i++) {
+        if (streamReadLine(client, line, sizeof(line), kStreamIdleMs) <= 0) break;
+      }
+      return true;
+    }
+    size_t remaining = (size_t)size;
+    while (remaining) {
+      size_t want = sizeof(buf);
+      if (remaining < want) want = remaining;
+      const size_t got = streamReadChunk(client, buf, want, kStreamIdleMs);
+      if (got == 0) return false;
+      if (!printJobPush(buf, got)) return false;
+      printerLoop();
+      yield();
+      remaining -= got;
+      if ((uint32_t)(millis() - started) > kStreamTotalMs) return false;
+    }
+    streamReadLine(client, line, sizeof(line), kStreamIdleMs); /* trailing CRLF */
+  }
+}
+
+/** Forward the rest of the request body straight to the printer.
+ *
+ *  Bounded in every dimension: at most kStreamChunk bytes live in RAM at once,
+ *  every chunk goes through printerWriteAll() (the same queue, back-pressure and
+ *  timeout behaviour as the buffered path) and printerLoop()/yield() run between
+ *  chunks so the watchdog and the Wi-Fi stack stay serviced.  Nothing here
+ *  depends on the size of the job - the loop keeps going until Content-Length is
+ *  satisfied (`expected`), the terminal chunk of a chunked body arrives, or the
+ *  peer closes / goes quiet for kStreamIdleMs.
+ *
+ *  Returns true when the whole body reached the printer. */
+bool streamPrintBody(WiFiClient& client, size_t expected, bool chunked) {
+  const uint32_t started = millis();
+  if (chunked) {
+    if (streamChunkedBody(client, started)) return true;
+    g_job.truncated = true;
+    return false;
+  }
+
+  uint8_t buf[kStreamChunk];
+  size_t remaining = expected;
+  for (;;) {
+    size_t want = sizeof(buf);
+    if (expected) {
+      if (remaining == 0) return true;
+      if (remaining < want) want = remaining;
+    }
+    const size_t got = streamReadChunk(client, buf, want, kStreamIdleMs);
+    if (got == 0) {
+      /* Without Content-Length the transfer ends when the peer stops sending;
+       * with it, a short read means the peer gave up in the middle of the job. */
+      if (expected) g_job.truncated = true;
+      return expected == 0;
+    }
+    if (!printJobPush(buf, got)) return false;
+    printerLoop();
+    yield();
+    if (expected) remaining -= got;
+    if ((uint32_t)(millis() - started) > kStreamTotalMs) {
+      g_job.truncated = true;
+      return false;
+    }
+  }
+}
+
+/** Cut once after the last copy, count the job and answer it.  Called exactly
+ *  once per job - from handlePrint() for the buffered and socket-streamed
+ *  paths, or after the ESP32 raw-body callback finished the transfer. */
+void printJobFinish() {
+  const bool complete = g_job.active && !g_job.stalled && !g_job.truncated;
+  uint32_t bytes = g_job.written;
+
+  if (complete && g_job.copies > 1) {
+    if (g_job.spool && !g_job.overflow) {
+      for (int copy = 1; copy < g_job.copies; copy++) {
+        const size_t sent = printerWriteAll(g_job.spool, g_job.spooled, kPrintWriteMs);
+        bytes += (uint32_t)sent;
+        if (sent < g_job.spooled) {
+          g_job.stalled = true;
+          printerSetError("printer queue stalled");
+          break;
+        }
+        printerLoop(); /* keep draining between copies */
+      }
+    } else {
+      LOGW("print: job %s asked for %d copies but the body is larger than the %u byte spool - printed once",
+           g_job.jobId, g_job.copies, (unsigned)kSpoolMax);
+    }
+  }
+
+  const bool ok = complete && !g_job.stalled;
+  if (ok && g_job.wantCut) {
+    uint8_t cut[16];
+    size_t cutLen = 0;
+    char note[64];
+    if (arsinBuildCommand(g_job.lang, "cut", nullptr, 0, cut, sizeof(cut), &cutLen, note) && cutLen) {
+      bytes += (uint32_t)printerWriteAll(cut, cutLen, kCutWriteMs);
+    }
+  }
+
+  if (ok) {
+    printerCountJob(g_job.jobId);
+    LOGI("api: print job %s (%s) %s %u byte(s) received, %u byte(s) sent", g_job.jobId, g_job.lang,
+         g_job.coreStreamed ? "[raw body]" : "[socket]", (unsigned)g_job.received, (unsigned)bytes);
+    webhookPost(g_job.jobId, bytes);
+    snprintf(g_small, sizeof(g_small), "{\"ok\":true,\"jobId\":\"%s\",\"bytes\":%u}", g_job.jobId,
+             (unsigned)bytes);
+    sendJson(200, g_small);
+  } else if (g_job.stalled) {
+    char msg[192];
+    snprintf(msg, sizeof(msg), "{\"ok\":false,\"error\":\"printer queue stalled\",\"jobId\":\"%s\",\"bytes\":%u}",
+             g_job.jobId, (unsigned)bytes);
+    sendJson(503, msg);
+  } else {
+    char msg[192];
+    snprintf(msg, sizeof(msg), "{\"ok\":false,\"error\":\"print body incomplete\",\"jobId\":\"%s\",\"bytes\":%u}",
+             g_job.jobId, (unsigned)bytes);
+    sendJson(400, msg);
+  }
+  printJobClear();
+}
+
 void handlePrint() {
-  if (!requireWriteAuth()) return;
+  const bool rawJob = g_job.active; /* armed by the ESP32 raw-body callback */
+
+  if (!requireWriteAuth()) {
+    /* The raw-body path runs before this handler, so the API key is checked
+     * there as well (see printRawBody) - no byte ever reached the printer. */
+    if (rawJob) printJobClear();
+    return;
+  }
+
+  /* The ESP32 raw-body callback already pushed the whole body through the
+   * printer queue: only cut, count and answer are left to do. */
+  if (rawJob) {
+    printJobFinish();
+    return;
+  }
 
   const char* lang = g_server.hasArg("lang") ? g_server.arg("lang").c_str() : g_config.language;
   const bool wantCut = g_server.hasArg("cut") ? (g_server.arg("cut").toInt() != 0) : g_config.cut;
@@ -355,50 +661,157 @@ void handlePrint() {
   if (copies < 1) copies = 1;
   if (copies > 20) copies = 20;
 
-  const char* payload = body();
-  const size_t len = bodyLen();
-  if (len == 0) {
-    sendError(400, "no print data received (send the job as the request body)");
-    return;
-  }
-  if (len > kBodyMax) {
-    sendError(413, "job too large for this device - use the raw port 9100 for big jobs");
-    return;
-  }
-
   char jobId[20];
   nextJobId(jobId, sizeof(jobId));
 
-  uint32_t bytes = 0;
-  for (int copy = 0; copy < copies; copy++) {
-    const size_t sent = printerWriteAll((const uint8_t*)payload, len, 4000);
-    bytes += (uint32_t)sent;
-    if (sent < len) {
-      printerSetError("printer queue stalled");
-      char msg[176];
-      snprintf(msg, sizeof(msg), "{\"ok\":false,\"error\":\"printer queue stalled\",\"jobId\":\"%s\",\"bytes\":%u}",
-               jobId, (unsigned)bytes);
-      sendJson(503, msg);
+  /* --- fallback: the core already buffered the body into arg("plain") -----
+   * ESP32 core 2.x and the ESP8266 core always do that, and ESP32 core 3.x
+   * does it for every body it is allowed to buffer - canRaw() in
+   * ArsinPrintRawHandler only claims jobs above kBodyMax, because the raw path
+   * cannot see the query string.  The bytes are in RAM here already, so they go
+   * through the printer queue exactly as before and a job bigger than kBodyMax
+   * is still refused with 413 (see firmware/README.md). */
+  if (g_server.hasArg("plain")) {
+    const char* payload = body();
+    const size_t len = bodyLen();
+    if (len == 0) {
+      sendError(400, "no print data received (send the job as the request body)");
       return;
     }
-    printerLoop(); /* keep draining between copies */
-  }
-
-  if (wantCut) {
-    uint8_t cut[16];
-    size_t cutLen = 0;
-    char note[64];
-    if (arsinBuildCommand(lang, "cut", nullptr, 0, cut, sizeof(cut), &cutLen, note, sizeof(note)) && cutLen) {
-      bytes += (uint32_t)printerWriteAll(cut, cutLen, 1000);
+    if (len > kBodyMax) {
+      sendError(413, "job too large for this device - send it chunked or use the raw port 9100");
+      return;
     }
+
+    uint32_t bytes = 0;
+    for (int copy = 0; copy < copies; copy++) {
+      const size_t sent = printerWriteAll((const uint8_t*)payload, len, kPrintWriteMs);
+      bytes += (uint32_t)sent;
+      if (sent < len) {
+        printerSetError("printer queue stalled");
+        char msg[176];
+        snprintf(msg, sizeof(msg),
+                 "{\"ok\":false,\"error\":\"printer queue stalled\",\"jobId\":\"%s\",\"bytes\":%u}", jobId,
+                 (unsigned)bytes);
+        sendJson(503, msg);
+        return;
+      }
+      printerLoop(); /* keep draining between copies */
+    }
+
+    if (wantCut) {
+      uint8_t cut[16];
+      size_t cutLen = 0;
+      char note[64];
+      if (arsinBuildCommand(lang, "cut", nullptr, 0, cut, sizeof(cut), &cutLen, note, sizeof(note)) && cutLen) {
+        bytes += (uint32_t)printerWriteAll(cut, cutLen, kCutWriteMs);
+      }
+    }
+
+    printerCountJob(jobId);
+    LOGI("api: print job %s (%s) %u byte(s) x%d", jobId, lang, (unsigned)len, copies);
+    webhookPost(jobId, bytes);
+    snprintf(g_small, sizeof(g_small), "{\"ok\":true,\"jobId\":\"%s\",\"bytes\":%u}", jobId, (unsigned)bytes);
+    sendJson(200, g_small);
+    return;
   }
 
-  printerCountJob(jobId);
-  LOGI("api: print job %s (%s) %u byte(s) x%d", jobId, lang, (unsigned)len, copies);
-  webhookPost(jobId, bytes);
-  snprintf(g_small, sizeof(g_small), "{\"ok\":true,\"jobId\":\"%s\",\"bytes\":%u}", jobId, (unsigned)bytes);
-  sendJson(200, g_small);
+  /* --- stream the body from the socket straight to the printer ----------- */
+  WiFiClient client = g_server.client(); /* shares the socket with the server */
+  const bool hasContentLength = g_server.hasHeader("Content-Length");
+  const size_t contentLength = hasContentLength ? (size_t)g_server.clientContentLength() : 0;
+  const bool chunked = g_server.hasHeader("Transfer-Encoding") &&
+                       g_server.header("Transfer-Encoding").indexOf("chunked") >= 0;
+  if (!chunked && hasContentLength && contentLength == 0) {
+    /* An explicit empty body: answer at once instead of waiting for data that
+     * will never arrive. */
+    sendError(400, "no print data received (send the job as the request body)");
+    return;
+  }
+  printJobBegin(false, lang, wantCut, copies, jobId);
+  LOGI("api: print job %s (%s) streaming a %s body", jobId, lang,
+       chunked ? "chunked" : (contentLength ? "Content-Length" : "close delimited"));
+  const bool done = streamPrintBody(client, contentLength, chunked);
+  if (!done) LOGW("print: job %s ended early after %u byte(s)", jobId, (unsigned)g_job.received);
+  printJobFinish();
 }
+
+#if ARSIN_RAW_BODY_SUPPORTED
+/** ESP32 core 3.x raw-body callback for /api/print (see ArsinPrintRawHandler).
+ *
+ *  WebServer::_parseRequest() calls it with RAW_START, then once per
+ *  HTTP_RAW_BUFLEN (1436 byte) slice, then RAW_END, and it never holds more than
+ *  one slice - which is what lets a 512 kB label through on a device with a few
+ *  hundred kB of heap.  Every slice goes through the same printer queue as the
+ *  buffered path; the job is cut, counted and answered by handlePrint(). */
+void printRawBody(WebServer& server, HTTPRaw& raw) {
+  switch (raw.status) {
+    case RAW_START: {
+      /* This path runs before the core parses the query string, so lang/cut/
+       * copies fall back to the configured defaults (documented in
+       * firmware/README.md).  The API key is checked here, before the first
+       * byte can reach the printer. */
+      char jobId[20];
+      nextJobId(jobId, sizeof(jobId));
+      printJobBegin(true, g_config.language, g_config.cut, 1, jobId);
+      g_job.authorised = apiKeyMatches(server);
+      if (!g_job.authorised) LOGW("api: refusing print job %s - missing or invalid X-Api-Key", jobId);
+      LOGI("api: print job %s (%s) streaming the raw body", jobId, g_config.language);
+      break;
+    }
+    case RAW_WRITE:
+      if (!g_job.active || !g_job.authorised || g_job.stalled) break; /* drain only */
+      printJobPush(raw.buf, raw.currentSize);
+      printerLoop();
+      yield();
+      break;
+    case RAW_END:
+      break; /* handlePrint() takes over */
+    case RAW_ABORTED:
+      if (g_job.active) {
+        LOGW("print: body aborted after %u byte(s)", (unsigned)g_job.received);
+        printJobClear(); /* the core drops the connection, so no response follows */
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+/** Route POST /api/print through the raw-body path when - and only when - the
+ *  core would otherwise buffer the whole job.
+ *
+ *  canRaw() claims bodies above kBodyMax.  The raw path runs before the core
+ *  parses the query string, so `lang`, `cut` and `copies` are unavailable for
+ *  those jobs: the configured defaults apply and the request is logged.  Every
+ *  job the core is allowed to buffer keeps the full query-string behaviour, so
+ *  ordinary receipts behave exactly as before.  handle() is called for both
+ *  paths, so small jobs simply fall through to handlePrint(). */
+class ArsinPrintRawHandler : public RequestHandler {
+ public:
+  bool canHandle(HTTPMethod method, const String& uri) override {
+    return method == HTTP_POST && uri == "/api/print";
+  }
+  bool canHandle(WebServer& server, HTTPMethod method, const String& uri) override {
+    (void)server;
+    return canHandle(method, uri);
+  }
+  bool canRaw(WebServer& server, const String& uri) override {
+    return uri == "/api/print" && server.clientContentLength() > (int)kBodyMax;
+  }
+  bool handle(WebServer& server, HTTPMethod method, const String& uri) override {
+    (void)server;
+    (void)method;
+    (void)uri;
+    handlePrint();
+    return true;
+  }
+  void raw(WebServer& server, const String& uri, HTTPRaw& raw) override {
+    (void)uri;
+    printRawBody(server, raw);
+  }
+};
+#endif /* ARSIN_RAW_BODY_SUPPORTED */
 
 void handleCommand() {
   if (!requireWriteAuth()) return;
@@ -497,7 +910,12 @@ void handleRaw() {
     return;
   }
   char mode[8] = "hex";
-  char data[1024];
+  /* Static, not stack: a hex body of 2 kB decodes to 1 kB of printer data and
+   * the ESP8266 loop task stack is only a few kB.  One request is served at a
+   * time, and both fields are mandatory, so the buffers cannot go stale. */
+  static char data[2052];
+  static uint8_t out[1024];
+  data[0] = 0;
   JsonPickString modePick("mode", mode, sizeof(mode));
   JsonPickString dataPick("data", data, sizeof(data));
   char err[48];
@@ -507,7 +925,6 @@ void handleRaw() {
     return;
   }
 
-  uint8_t out[512];
   size_t outLen = 0;
   if (!strcasecmp(mode, "text")) {
     outLen = strlen(data);
@@ -1015,12 +1432,20 @@ void sseLoop() {
 /* ----------------------------------------------------------------- bootstrap */
 
 void setupRoutes() {
+#if ARSIN_RAW_BODY_SUPPORTED
+  /* Registered before every other /api/print route: ArsinPrintRawHandler is the
+   * only handler that can keep WebServer from buffering a big body, and it
+   * falls back to handlePrint() for the jobs it does not claim (see canRaw()).
+   * WebServer::addHandler() appends, so it has to come first. */
+  g_server.addHandler(new ArsinPrintRawHandler());
+#else
+  g_server.on("/api/print", HTTP_POST, handlePrint);
+#endif
   g_server.on("/api/health", HTTP_GET, handleHealth);
   g_server.on("/api/info", HTTP_GET, handleInfo);
   g_server.on("/api/status", HTTP_GET, handleStatus);
   g_server.on("/api/config", HTTP_GET, handleConfigGet);
   g_server.on("/api/config", HTTP_POST, handleConfigPost);
-  g_server.on("/api/print", HTTP_POST, handlePrint);
   g_server.on("/api/command", HTTP_POST, handleCommand);
   g_server.on("/api/raw", HTTP_POST, handleRaw);
   g_server.on("/api/serial", HTTP_GET, handleSerial);
@@ -1039,7 +1464,9 @@ void setupRoutes() {
   g_server.on("/", HTTP_GET, handleStatic);
   g_server.onNotFound(handleNotFound);
 
-  static const char* kCollected[] = {"Content-Length", "X-Api-Key", "Accept-Encoding", "Content-Type"};
+  /* Transfer-Encoding decides whether /api/print has to decode a chunked body. */
+  static const char* kCollected[] = {"Content-Length", "X-Api-Key", "Accept-Encoding", "Content-Type",
+                                     "Transfer-Encoding"};
   g_server.collectHeaders(kCollected, sizeof(kCollected) / sizeof(kCollected[0]));
 }
 

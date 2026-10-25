@@ -277,19 +277,18 @@ test('parseRawInput handles hex, escapes and plain text', () => {
   assert.deepEqual(parseRawInput(null), []);
   // a single hex-looking token is ambiguous, so it stays text
   assert.deepEqual(parseRawInput('1B'), [49, 66]);
-  // BUG (reported to the lead, not fixed here): the auto detector accepts a
-  // compact 4-hex-digit token such as "1B40" as hex, but bytesFromHex() parses
-  // it as one 16-bit number and truncates it to 0x40, so the console sends a
-  // single wrong byte. See the skipped test below for the wanted result.
-  assert.deepEqual(parseRawInput('1B40'), [0x40]);
+  // compact hex without separators decodes two digits at a time
+  assert.deepEqual(parseRawInput('1B40'), [0x1b, 0x40]);
+  assert.deepEqual(parseRawInput('1B,40'), [0x1b, 0x40]);
+  assert.deepEqual(bytesFromHex('1B-40'), [0x1b, 0x40], 'separators other than whitespace are accepted by bytesFromHex');
 });
 
-// Documents a bug found in assets/js/core/commands.js (owned by the lead, not
-// patched here): bytesFromHex() must decode hex two digits at a time.
-// Un-skip once the core module is fixed.
-test('BUG: compact hex input "1B40" should decode as two bytes', { skip: 'reported to the lead - bytesFromHex() truncates unseparated hex to one byte' }, () => {
-  assert.deepEqual(parseRawInput('1B40'), [0x1b, 0x40]);
+test('compact hex input decodes two digits at a time', () => {
   assert.deepEqual(bytesFromHex('1B40'), [0x1b, 0x40]);
+  assert.deepEqual(bytesFromHex('1B 40 1D 56 00'), [0x1b, 0x40, 0x1d, 0x56, 0x00]);
+  assert.deepEqual(bytesFromHex('0x1B,0x40'), [0x1b, 0x40]);
+  assert.deepEqual(bytesFromHex('1B4'), [0x1b, 0x04], 'a final odd nibble is a low byte');
+  assert.deepEqual(bytesFromHex(''), []);
 });
 
 test('bytesFromText, bytesFromHex and the preview helpers agree', () => {

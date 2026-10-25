@@ -6,7 +6,7 @@
   "description": "Browser-based installer + wireless print server firmware for ESP32 / ESP8266 / Raspberry Pi",
   "license": "MIT",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
     "validate": "node tools/validate-catalogs.mjs",
     "build:web-assets": "node tools/build-web-assets.mjs",
     "build:manifests": "node tools/generate-manifests.mjs",

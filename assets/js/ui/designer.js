@@ -505,7 +505,23 @@ function deviceModal() {
             } else {
               payload = state.output && state.output.bytes ? state.output.bytes : renderLabel(state.doc, { lang: state.doc.language, mode: 'native' }).bytes;
             }
-            const res = await state.device.printBytes(payload, { lang: state.doc.language, cut: state.doc.cut !== false, copies: state.doc.copies });
+            // Jobs larger than the device body buffer are streamed by the firmware,
+            // which cannot see the query string on that path - so big jobs get an
+            // explicit cut command right after the payload.
+            const bigJob = payload.length > 60000;
+            const wantCut = state.doc.cut !== false;
+            const res = await state.device.printBytes(payload, {
+              lang: state.doc.language,
+              cut: wantCut && !bigJob,
+              copies: state.doc.copies
+            });
+            if (bigJob && wantCut) {
+              try {
+                await state.device.sendCommand(state.doc.language, 'cut', {});
+              } catch (e) {
+                /* the printer may not have a cutter - not fatal */
+              }
+            }
             toast('Sent to the printer (' + (res.bytes || payload.length) + ' bytes)', 'ok');
           } catch (e) {
             toast('Send failed: ' + e.message, 'danger', 6000);

@@ -1,0 +1,195 @@
+/**
+ * Tooling integration tests: the standalone catalog validator and the static
+ * preview server are part of the deliverable, so they get tested too.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { mkdtemp, mkdir, copyFile, rm, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { createStaticServer, mimeType, resolveRequestPath, REPO_ROOT, DEFAULT_PORT } from '../tools/serve.mjs';
+
+const run = promisify(execFile);
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/** Run the validator and return { code, stdout, stderr }. */
+async function validate(env = {}) {
+  try {
+    const { stdout, stderr } = await run(process.execPath, ['tools/validate-catalogs.mjs'], { cwd: ROOT, env: { ...process.env, ...env } });
+    return { code: 0, stdout, stderr };
+  } catch (e) {
+    return { code: e.code, stdout: e.stdout || '', stderr: e.stderr || '' };
+  }
+}
+
+test('npm run validate passes on the committed catalogs and reports a summary', async () => {
+  const result = await validate();
+  assert.equal(result.code, 0, `validator exited ${result.code}: ${result.stdout}${result.stderr}`);
+  assert.match(result.stdout, /catalog validation/);
+  assert.match(result.stdout, /boards: 15 {2}apps: 7/);
+  assert.match(result.stdout, /0 error\(s\)/);
+  assert.match(result.stdout, /CATALOGS OK/);
+  assert.ok(!/CATALOGS INVALID/.test(result.stdout));
+});
+
+test('the validator also runs in --json mode', async () => {
+  const { stdout } = await run(process.execPath, ['tools/validate-catalogs.mjs', '--json'], { cwd: ROOT });
+  const parsed = JSON.parse(stdout);
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.errors, []);
+  assert.equal(parsed.stats.boards, 15);
+  assert.equal(parsed.stats.apps, 7);
+  assert.ok(parsed.stats.compatiblePairs > 0);
+});
+
+test('a fresh clone without manifests/index.json still validates cleanly', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'arsin-validate-'));
+  try {
+    await mkdir(join(dir, 'data'), { recursive: true });
+    await copyFile(join(ROOT, 'data/boards.json'), join(dir, 'data/boards.json'));
+    await copyFile(join(ROOT, 'data/apps.json'), join(dir, 'data/apps.json'));
+    const result = await validate({ ARSIN_CATALOG_ROOT: dir });
+    assert.equal(result.code, 0, `validator exited ${result.code}: ${result.stdout}${result.stderr}`);
+    assert.match(result.stdout, /manifests\/index\.json is not present/);
+    assert.match(result.stdout, /CATALOGS OK/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('the validator fails (exit 1) when a catalog is broken', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'arsin-validate-bad-'));
+  try {
+    await mkdir(join(dir, 'data'), { recursive: true });
+    const boards = JSON.parse(await readFile(join(ROOT, 'data/boards.json'), 'utf8'));
+    boards.boards[0].pins.uartTx = '';
+    boards.boards[0].radios.wifi = false;
+    await writeFile(join(dir, 'data/boards.json'), JSON.stringify(boards));
+    await copyFile(join(ROOT, 'data/apps.json'), join(dir, 'data/apps.json'));
+    const result = await validate({ ARSIN_CATALOG_ROOT: dir });
+    assert.equal(result.code, 1, 'a broken catalog must fail the validator');
+    assert.match(result.stdout, /error: board "esp32-devkit-v1": pin "uartTx" is empty/);
+    assert.match(result.stdout, /CATALOGS INVALID/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+/* ------------------------------------------------------------ serve.mjs ---- */
+
+test('serve.mjs maps the documented MIME types', () => {
+  assert.equal(DEFAULT_PORT, 8080);
+  assert.equal(mimeType('index.html'), 'text/html; charset=utf-8');
+  assert.equal(mimeType('assets/js/core/barcode.js'), 'text/javascript; charset=utf-8');
+  assert.equal(mimeType('data/boards.json'), 'application/json; charset=utf-8');
+  assert.equal(mimeType('assets/css/app.css'), 'text/css; charset=utf-8');
+  assert.equal(mimeType('logo.svg'), 'image/svg+xml');
+  assert.equal(mimeType('firmware.bin'), 'application/octet-stream');
+  assert.equal(mimeType('photo.PNG'), 'image/png');
+  assert.equal(mimeType('no-extension'), 'application/octet-stream');
+});
+
+test('resolveRequestPath refuses to leave the served root', async () => {
+  const result = await resolveRequestPath(REPO_ROOT, '/../../etc/passwd');
+  assert.notEqual(result.status, undefined);
+  assert.ok(result.status === 404 || result.status === 403, `expected 404/403, got ${JSON.stringify(result)}`);
+  const bad = await resolveRequestPath(REPO_ROOT, '/%00bad');
+  assert.ok(bad.status === 400 || bad.status === 404);
+  const file = await resolveRequestPath(REPO_ROOT, '/index.html');
+  assert.equal(file.path, join(REPO_ROOT, 'index.html'));
+  assert.ok(file.size > 0);
+  const missing = await resolveRequestPath(REPO_ROOT, '/does-not-exist.html');
+  assert.equal(missing.status, 404);
+  const directory = await resolveRequestPath(REPO_ROOT, '/assets');
+  assert.equal(directory.redirect, '/assets/');
+});
+
+test('the preview server serves the site with correct headers', async () => {
+  const server = createStaticServer({ root: REPO_ROOT });
+  await new Promise((resolvePromise) => server.listen(0, '127.0.0.1', resolvePromise));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const home = await fetch(`${base}/`);
+    assert.equal(home.status, 200);
+    assert.equal(home.headers.get('content-type'), 'text/html; charset=utf-8');
+    assert.equal(home.headers.get('cache-control'), 'no-store');
+    assert.match(await home.text(), /<title>Arsin Print Server/);
+
+    const explicit = await fetch(`${base}/index.html`);
+    assert.equal(explicit.status, 200);
+
+    const boards = await fetch(`${base}/data/boards.json`);
+    assert.equal(boards.status, 200);
+    assert.equal(boards.headers.get('content-type'), 'application/json; charset=utf-8');
+    assert.equal((await boards.json()).boards.length, 15);
+
+    const module = await fetch(`${base}/assets/js/core/barcode.js`);
+    assert.equal(module.status, 200);
+    assert.equal(module.headers.get('content-type'), 'text/javascript; charset=utf-8');
+    assert.match(await module.text(), /export function code128/);
+
+    const css = await fetch(`${base}/assets/css/app.css`);
+    assert.equal(css.status, 200);
+    assert.equal(css.headers.get('content-type'), 'text/css; charset=utf-8');
+
+    const manifest = await fetch(`${base}/manifests/index.json`);
+    assert.equal(manifest.status, 200);
+    assert.equal(manifest.headers.get('content-type'), 'application/json; charset=utf-8');
+
+    const missing = await fetch(`${base}/does-not-exist.html`);
+    assert.equal(missing.status, 404);
+    assert.match(await missing.text(), /404/);
+
+    const directory = await fetch(`${base}/assets`, { redirect: 'manual' });
+    assert.equal(directory.status, 301);
+    assert.equal(directory.headers.get('location'), '/assets/');
+
+    const head = await fetch(`${base}/index.html`, { method: 'HEAD' });
+    assert.equal(head.status, 200);
+    assert.ok(Number(head.headers.get('content-length')) > 0);
+    assert.equal(await head.text(), '');
+
+    const post = await fetch(`${base}/`, { method: 'POST' });
+    assert.equal(post.status, 405);
+    assert.equal(post.headers.get('allow'), 'GET, HEAD');
+  } finally {
+    server.closeAllConnections?.();
+    await new Promise((resolvePromise) => server.close(resolvePromise));
+  }
+});
+
+test('the preview server serves .bin files and directory indexes from any root', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'arsin-serve-'));
+  try {
+    await writeFile(join(dir, 'index.html'), '<!doctype html><title>root</title>');
+    await writeFile(join(dir, 'logo.bin'), Buffer.from([0x1b, 0x40, 0x00, 0xff]));
+    await mkdir(join(dir, 'sub'));
+    await writeFile(join(dir, 'sub/index.html'), '<!doctype html><title>sub</title>');
+
+    const server = createStaticServer({ root: dir });
+    await new Promise((resolvePromise) => server.listen(0, '127.0.0.1', resolvePromise));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    try {
+      const bin = await fetch(`${base}/logo.bin`);
+      assert.equal(bin.status, 200);
+      assert.equal(bin.headers.get('content-type'), 'application/octet-stream');
+      assert.deepEqual([...new Uint8Array(await bin.arrayBuffer())], [0x1b, 0x40, 0x00, 0xff]);
+
+      const sub = await fetch(`${base}/sub/`);
+      assert.equal(sub.status, 200);
+      assert.match(await sub.text(), /<title>sub<\/title>/);
+
+      const root = await fetch(`${base}/`);
+      assert.match(await root.text(), /<title>root<\/title>/);
+    } finally {
+      server.closeAllConnections?.();
+      await new Promise((resolvePromise) => server.close(resolvePromise));
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+

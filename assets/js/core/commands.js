@@ -40,13 +40,19 @@ export function bytesFromText(text) {
   return out;
 }
 
-/** "1B 40 1D 56 00" (or "0x1B,0x40") -> byte array. */
+/**
+ * "1B 40 1D 56 00", "0x1B,0x40", "1B40" or "1B-40" -> byte array.
+ * Whitespace, commas, colons and dashes are ignored; a final odd nibble is
+ * treated as a low byte (e.g. "1B4" -> 1B 04).
+ */
 export function bytesFromHex(text) {
-  return String(text)
-    .replace(/0x/gi, '')
-    .split(/[^0-9a-fA-F]+/)
-    .filter(Boolean)
-    .map((h) => parseInt(h, 16) & 0xff);
+  const cleaned = String(text == null ? '' : text).replace(/0x/gi, '').replace(/[^0-9a-fA-F]/g, '');
+  if (!cleaned) return [];
+  const out = [];
+  for (let i = 0; i < cleaned.length; i += 2) {
+    out.push(parseInt(cleaned.slice(i, i + 2), 16) & 0xff);
+  }
+  return out;
 }
 
 export function toHex(bytes) {

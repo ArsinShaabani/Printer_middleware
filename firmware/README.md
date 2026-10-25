@@ -152,9 +152,9 @@ with `204`.  When `security.apiKey` is set, every state changing call needs the
 | GET    | `/api/status`              | –                                         | `{state,printer,queue,counters,wifi,bt,usb,heap,uptimeMs}` |
 | GET    | `/api/config`              | –                                         | config JSON (schema below) |
 | POST   | `/api/config`              | config JSON (partial is fine)             | `{ok:true,restartRequired:bool}` |
-| POST   | `/api/print`               | raw bytes, query `lang`,`cut=0|1`,`copies` | `{ok:true,jobId,bytes}` |
+| POST   | `/api/print`               | raw bytes (streamed), query `lang`,`cut=0|1`,`copies` | `{ok:true,jobId,bytes}` |
 | POST   | `/api/command`             | `{lang,action,params}`                    | `{ok:true,hex,bytes,note}` |
-| POST   | `/api/raw`                 | `{data,mode:"hex"|"text"}`                | `{ok:true,bytes}` |
+| POST   | `/api/raw`                 | `{data,mode:"hex"|"text"}`, ≤1 kB decoded | `{ok:true,bytes}` |
 | GET    | `/api/serial?since=N`      | –                                         | `{data:"1B 40 ..",next:N}` |
 | GET    | `/api/logs?since=N`        | –                                         | `{lines:[{t,level,msg}],next:N}` |
 | POST   | `/api/wifi/scan`           | –                                         | `{networks:[{ssid,rssi,secure}]}` |
@@ -189,6 +189,9 @@ curl -X POST http://arsin_print_server.local/api/command \
 # {"ok":true,"hex":"1B 40 1D 28 41 02 00 01 00","bytes":9,"note":"GS ( A execute printer test"}
 curl -X POST 'http://arsin_print_server.local/api/print?lang=escpos&cut=1' \
      -H 'Content-Type: application/octet-stream' --data-binary @receipt.bin
+# a 100 kB ZPL shipping label: streamed straight to the printer, no 413
+curl -X POST 'http://arsin_print_server.local/api/print?lang=zpl&cut=1' \
+     -H 'Content-Type: application/octet-stream' --data-binary @label.zpl
 printf 'hello\n' | nc arsin_print_server.local 9100     # raw path, no size limit
 ```
 
@@ -320,12 +323,48 @@ core 2.x and on the ESP8266 the endpoint answers `501` with a clear message
 telling the client to poll `/api/status`; the Raspberry Pi build always
 supports SSE.
 
-**Request body limits.**  `/api/print` and the raw-body `/api/ota` path are
-limited by the RAM available to the web server (64 KB on ESP32, 4 KB on
-ESP8266).  Larger jobs should use the raw TCP port 9100, which streams straight
-to the printer with no buffering.  `/api/ota` prefers
-`multipart/form-data` (`curl -F firmware=@app.bin`), which streams through
-`Update.write()` without buffering the image.
+**Streaming uploads.**  `POST /api/print` does not buffer the job any more.
+The body is forwarded to the printer in bounded chunks (`kStreamChunk`: 1024
+bytes on the ESP32, 512 on the ESP8266) through the same queue, back-pressure
+and timeout path as everything else, and `printerLoop()`/`yield()` run between
+chunks, so a 100 kB shipping label - or a 512 kB one - costs about a kilobyte of
+RAM instead of the whole payload.  The old 4 KB/64 KB rejection is gone:
+
+| build           | `/api/print` body                                                                     |
+| --------------- | ------------------------------------------------------------------------------------- |
+| ESP32 core 3.x  | streamed at any size: up to 64 KB straight from the socket, above that through the core's raw-body path (1436 byte slices) |
+| ESP32 core 2.x  | streamed when the body carries no `Content-Length`; otherwise buffered, 64 KB cap       |
+| ESP8266         | streamed when the body carries no `Content-Length`; otherwise buffered, 4 KB cap        |
+| Raspberry Pi    | streamed at any size, no practical limit                                                |
+
+`Content-Length` is honoured exactly; a `Transfer-Encoding: chunked` body is
+decoded on the device; a body with neither is read until the peer closes the
+connection (or stops sending for 5 s).  The web application always sends a
+`Content-Length`, so it takes the first case.
+
+While a job is streaming, the HTTP loop is inside the handler, so other API
+calls answer once the job has been handed to the printer.  The printer queue
+keeps draining and the Wi-Fi stack keeps running between chunks, and no single
+`delay()` exceeds 1 ms, so neither the watchdog nor the TCP connection is
+starved.
+
+Two documented limits remain:
+
+* `lang`, `cut` and `copies` come from the parsed query string.  On arduino-esp32
+  core 3.x the core hands a body **above** 64 KB over through its raw-body API,
+  which runs *before* the query string is parsed, so those jobs fall back to the
+  configured defaults (`printer.cut`, one copy) and log the reason.  Everything
+  up to 64 KB - and every other build - keeps the query parameters.  Embed the
+  cut in the payload, or use port 9100, when a >64 KB job needs one.
+* `copies > 1` on a streamed body is replayed from a bounded repeat spool
+  (`kSpoolMax`, allocated per job only for that case).  A job larger than the
+  spool is printed once and the reason is logged.
+
+`/api/ota` still prefers `multipart/form-data` (`curl -F firmware=@app.bin`),
+which streams through `Update.write()` without buffering the image; a raw
+(non-multipart) `.bin` body is still capped at `kBodyMax`.  `/api/raw` carries
+small bursts (up to 1 kB of decoded printer bytes) and `/api/command` builds its
+sequence on the device, so neither was affected by the print change.
 
 **Persistence.**  ESP32: Preferences/NVS (namespace `arsin-ps`, key `cfg`).
 ESP8266: EEPROM with a magic + CRC32 envelope.  Both store the configuration as
@@ -350,8 +389,18 @@ that can be run anywhere.  `firmware/tools/check-sources.mjs` verifies balanced
 is defined twice inside one sketch, and that the files shared by the two Arduino
 sketches are byte identical.
 
+`firmware/tools/check-print-streaming.mjs` is the regression test for the
+`/api/print` streaming path: it fails if the body is buffered again (`body()`
+outside the `hasArg("plain")` fallback, an allocation sized from
+`Content-Length`, `streamPrintBody()` no longer reading the socket), if the
+socket windows grow past `kStreamChunk` (1024/512), if the raw-body handler is
+registered after the buffered route, or if `Transfer-Encoding` stops being
+collected.  It also prints the line numbers of the streaming path (the trace
+quoted in the change report).
+
 ```bash
 node firmware/tools/check-sources.mjs                     # structural check
+node firmware/tools/check-print-streaming.mjs --verbose   # /api/print streaming
 python3 -m py_compile firmware/raspberrypi/arsin_print_server.py
 python3 -c "import json;json.load(open('firmware/raspberrypi/config.example.json'))"
 bash -n firmware/raspberrypi/install.sh

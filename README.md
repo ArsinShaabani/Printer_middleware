@@ -174,7 +174,7 @@ automatically.
 | GET | `/api/info` | board, app, version, MAC, IP, hostname, transport, language, heap, RSSI |
 | GET | `/api/status` | printer state, queue, counters, Wi-Fi, Bluetooth, USB, uptime |
 | GET/POST | `/api/config` | read / write the full configuration JSON |
-| POST | `/api/print` | raw print body (`application/octet-stream`), query `lang`, `cut`, `copies` |
+| POST | `/api/print` | raw print body (`application/octet-stream`), query `lang`, `cut`, `copies`; bodies larger than the device buffer are streamed straight to the printer |
 | POST | `/api/command` | `{lang, action, params}` - build and run a maintenance command |
 | POST | `/api/raw` | `{data, mode: hex\|text}` - send arbitrary bytes |
 | GET | `/api/serial?since=N` | received bytes from the printer |
@@ -204,6 +204,14 @@ lpadmin -p Arsin_Labels -E -v socket://arsin_print_server.local:9100 -m raw
 - `test.yml` - unit tests, catalog validation.
 - `build-firmware.yml` - compiles every compatible board/variant pair, publishes binaries to a GitHub release on tags.
 - `deploy-pages.yml` - builds the web assets + manifests, compiles the firmware matrix, publishes the installer site to GitHub Pages.
+
+### Large print jobs
+
+Labels can be big: a 100 x 150 mm shipping label as a raster image is easily 100 kB. The firmware
+streams those bodies to the printer in bounded chunks instead of buffering them, so RAM stays flat
+even on an ESP8266. On that streaming path the request query string is not visible to the firmware,
+so `lang`/`cut`/`copies` fall back to the configured defaults - the web designer therefore sends an
+explicit cut command after any job above 60 kB. Small jobs keep the full query-string behaviour.
 
 ## Security notes
 

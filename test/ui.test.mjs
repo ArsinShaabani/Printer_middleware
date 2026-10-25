@@ -42,7 +42,7 @@ async function waitFor(predicate, timeout = 5000) {
  * controllers expect, stub fetch with the on-disk catalogs and import the page
  * controller module (with a cache-busting query so every page runs fresh).
  */
-async function loadPage(page, query = '', settle) {
+async function loadPage(page, query = '', settle, quietMs = 400) {
   const html = readFileSync(`${ROOT}/${page}`, 'utf8');
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: `http://localhost/${page}${query}` });
   const { window } = dom;
@@ -70,7 +70,7 @@ async function loadPage(page, query = '', settle) {
   if (settle) {
     const ready = await waitFor(() => settle(window.document));
     assert.ok(ready, `${page}: the page did not finish rendering within the timeout`);
-    await sleep(400); // let any remaining async controller work finish
+    await sleep(quietMs); // let any remaining async controller work finish
   }
   return { dom, window, doc: window.document };
 }
@@ -220,11 +220,15 @@ test('designer.html renders the preview SVG, the element list and the output pan
   doc.querySelector('#el-list .el-item').dispatchEvent(new doc.defaultView.Event('click'));
   assert.ok(count(doc, '#props .field') >= 4, 'element property fields');
 
-  // The output panel shows the native ZPL commands and the hex dump.
+  // The output panel shows the native ZPL commands and the hex dump. The
+  // designer renders the output asynchronously (it prepares image bitmaps
+  // first), so wait for it instead of reading synchronously.
+  const outReady = await waitFor(() => doc.getElementById('out-cmd').textContent.startsWith('^XA'));
+  assert.ok(outReady, 'the native output panel is populated');
   const outCmd = doc.getElementById('out-cmd').textContent;
-  assert.ok(outCmd.startsWith('^XA'), 'native output starts with ^XA');
-  assert.ok(outCmd.includes('^GFA,'), 'the image element is emitted as a graphic field');
+  assert.ok(outCmd.includes('^BCN,'), 'the barcode element is emitted');
   assert.ok(outCmd.includes('^BQN'), 'the QR element is emitted');
+  assert.ok(outCmd.includes('^GB'), 'the box element is emitted');
   assert.match(doc.getElementById('out-hex').textContent, /^(?:[0-9A-F]{2} )+/, 'hex dump');
   assert.match(doc.getElementById('out-json').textContent, /"elements"/, 'JSON view');
   assert.equal(doc.getElementById('warn-host').textContent.trim(), '', 'no warnings for a valid ZPL document');
@@ -239,10 +243,15 @@ test('designer.html renders the preview SVG, the element list and the output pan
   const lang = doc.getElementById('language');
   lang.value = 'tspl';
   lang.dispatchEvent(new doc.defaultView.Event('change'));
-  assert.ok(doc.getElementById('out-cmd').textContent.startsWith('SIZE 50 mm,30 mm'), 'TSPL output');
+  assert.ok(await waitFor(() => doc.getElementById('out-cmd').textContent.startsWith('SIZE 50 mm,30 mm')), 'TSPL output');
   lang.value = 'escpos';
   lang.dispatchEvent(new doc.defaultView.Event('change'));
-  assert.match(doc.getElementById('out-cmd').textContent, /binary output - see the hex tab/, 'ESC/POS is binary');
+  // ESC/POS is a binary language: the text view is a printable preview and the
+  // hex panel must show the ESC @ initialise sequence.
+  assert.ok(await waitFor(() => doc.getElementById('out-hex').textContent.startsWith('1B 40')), 'ESC/POS hex output');
+  assert.ok(!doc.getElementById('out-cmd').textContent.startsWith('^XA'), 'the ZPL output was replaced');
+  lang.value = 'zpl';
+  lang.dispatchEvent(new doc.defaultView.Event('change'));
 
   // Grid toggle and zoom keep the SVG valid.
   const grid = doc.getElementById('grid-toggle');
@@ -252,5 +261,102 @@ test('designer.html renders the preview SVG, the element list and the output pan
   doc.getElementById('btn-zoom-in').dispatchEvent(new doc.defaultView.Event('click'));
   assert.equal(doc.getElementById('zoom-label').textContent, '125%');
   assert.ok(doc.querySelector('#preview svg'), 'the preview survives the zoom');
+});
+
+
+test('troubleshoot.html renders the dashboard, the maintenance grid and the console', async () => {
+  // The page starts a 5 second auto-refresh interval; keep the test process from
+  // staying alive because of it.
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  let doc;
+  try {
+    ({ doc } = await loadPage('troubleshoot.html', '', (d) => d.querySelectorAll('#dash-status dt').length > 0 && d.querySelectorAll('#cfg-form .field').length > 0, 1500));
+  } finally {
+    globalThis.setInterval = realSetInterval;
+  }
+
+  // The demo device renders a full dashboard.
+  assert.ok(count(doc, '#dash-status dt') >= 10, 'status rows');
+  assert.equal(count(doc, '#dash-counters dd'), 3, 'counter rows');
+  assert.ok(count(doc, '#dash-wifi dd') >= 4, 'wifi rows');
+  assert.ok(count(doc, '#dash-io dd') >= 4, 'bluetooth/usb rows');
+  assert.match(doc.getElementById('dash-status').textContent, /Demo|demo|arsin_print_server/);
+  assert.match(doc.getElementById('dev-state').textContent, /Demo mode/, 'demo badge');
+  assert.match(doc.getElementById('dev-last').textContent, /^updated /, 'last refresh timestamp');
+
+  // One language option per printer language and one card per action.
+  assert.equal(count(doc, '#maint-lang option'), 10);
+  assert.equal(count(doc, '#maint-grid .card'), 19, 'maintenance action cards');
+  assert.match(doc.getElementById('maint-count').textContent, /19 of 19 actions supported by ESC\/POS/);
+
+  // Switching the language re-renders the grid with the right support count.
+  const lang = doc.getElementById('maint-lang');
+  lang.value = 'ipl';
+  lang.dispatchEvent(new doc.defaultView.Event('change'));
+  assert.equal(count(doc, '#maint-grid .card'), 19, 'every action stays listed');
+  assert.match(doc.getElementById('maint-count').textContent, /6 of 19 actions supported by IPL/);
+  assert.ok(count(doc, '#maint-grid .card.disabled') > 0, 'unsupported actions are greyed out');
+
+  // The Preview button renders the generated command for the selected action.
+  const firstCard = doc.querySelector('#maint-grid .card:not(.disabled)');
+  const buttons = [...firstCard.querySelectorAll('button')];
+  const preview = buttons.find((b) => b.textContent === 'Preview');
+  assert.ok(preview, 'the action card has a Preview button');
+  preview.dispatchEvent(new doc.defaultView.Event('click'));
+  const previewText = doc.getElementById('maint-preview').textContent;
+  assert.match(previewText, /^Action : /);
+  assert.match(previewText, /Hex {4}: [0-9A-F]{2}/);
+  assert.match(previewText, /Note {3}: /);
+  assert.match(firstCard.textContent, /Self test page/);
+
+  // The raw console is wired to the parser: the hex quick-fill buttons work.
+  const quick = doc.querySelector('[data-quick="1D 56 00"]');
+  assert.ok(quick, 'quick command buttons');
+  quick.dispatchEvent(new doc.defaultView.Event('click'));
+  assert.equal(doc.getElementById('console-input').value, '1D 56 00');
+  assert.equal(doc.getElementById('console-mode').value, 'hex');
+  doc.getElementById('console-send').dispatchEvent(new doc.defaultView.Event('click'));
+  assert.match(doc.getElementById('console-out').textContent, /1D 56 00/, 'the echo line shows the sent bytes');
+  // The send handler awaits the device reply, so let it settle before the test
+  // ends (otherwise it would write into the next page's document).
+  await sleep(400);
+  assert.match(doc.getElementById('console-out').textContent, /<< sent 3 bytes/, 'the device reply is logged');
+
+  // Configuration form + firmware/backup panel.
+  assert.ok(count(doc, '#cfg-form .field') >= 20, 'configuration fields');
+  assert.match(doc.getElementById('cfg-raw').textContent, /"printer"/, 'raw JSON view');
+  assert.ok(doc.getElementById('backup-download') && doc.getElementById('ota-file'), 'firmware & backup controls');
+  assert.match(doc.getElementById('diag-out').textContent, /Connect to a device/, 'diagnostics placeholder');
+});
+
+test('docs.html renders the wiring library, the language reference and the FAQ', async () => {
+  const { doc } = await loadPage('docs.html', '', (d) => d.querySelectorAll('#wiring-doc .card').length > 0);
+  assert.equal(count(doc, '#wiring-app option'), 7, 'one option per firmware variant');
+  assert.equal(count(doc, '#wiring-board option'), 15, 'one option per board');
+  assert.equal(count(doc, '#wiring-doc .card'), 3, 'one card per transport of the Wi-Fi bridge');
+  assert.ok(doc.querySelector('#wiring-doc svg'), 'the wiring library embeds a diagram');
+  assert.match(doc.getElementById('wiring-doc').textContent, /TTL serial wiring/);
+
+  assert.ok(doc.getElementById('languages-doc').children.length >= 5, 'printer language reference');
+  assert.match(doc.getElementById('languages-doc').textContent, /ESC\/POS/);
+  assert.match(doc.getElementById('languages-doc').textContent, /ZPL II/);
+  assert.ok(doc.getElementById('api-doc').children.length >= 3, 'REST API reference');
+  assert.match(doc.getElementById('api-doc').textContent, /\/api\/print/);
+  assert.ok(doc.getElementById('boards-doc').children.length >= 4, 'add-a-board documentation');
+  assert.ok(doc.getElementById('build-doc').children.length >= 2, 'build documentation');
+  assert.match(doc.getElementById('build-doc').textContent, /npm run build/);
+  assert.equal(count(doc, '#faq-doc details'), 12, 'troubleshooting FAQ entries');
+  assert.match(doc.getElementById('faq-doc').textContent, /board is not detected/i);
+
+  // Changing the app selection refills the board list and the recipes.
+  const appSelect = doc.getElementById('wiring-app');
+  appSelect.value = 'print-server-cups';
+  appSelect.dispatchEvent(new doc.defaultView.Event('change'));
+  assert.equal(count(doc, '#wiring-board option'), 15, 'every board stays selectable');
+  assert.ok(count(doc, '#wiring-board option') > 0);
+  assert.match(doc.getElementById('wiring-board').textContent, /\(partial\)/, 'incompatible boards are marked partial');
+  assert.equal(count(doc, '#wiring-doc .card'), 3, 'one card per CUPS transport');
+  assert.match(doc.getElementById('wiring-doc').textContent, /Raspberry Pi serial wiring|Network printer/);
 });
 
