@@ -1,1 +1,245 @@
+name: Build & deploy site + firmware
 
+# Builds the web assets, compiles every board/variant pair from the catalogs,
+# copies the binaries into firmware-bin/<board>/<variant>/, regenerates the
+# esp-web-tools manifests and publishes the whole site to GitHub Pages.
+#
+# The firmware compile is deliberately tolerant: when arduino-cli or the cores
+# are unavailable the site is still published (the installer then reports that a
+# combination is not built yet).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Build the compile matrix from the catalogs
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      count: ${{ steps.matrix.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate the board/variant matrix
+        id: matrix
+        run: |
+          cat > "$RUNNER_TEMP/matrix.mjs" <<'JS'
+          import { readFileSync } from 'node:fs';
+          import { pathToFileURL } from 'node:url';
+          const catalog = await import(pathToFileURL(`${process.cwd()}/assets/js/core/catalog.js`).href);
+          const boards = JSON.parse(readFileSync('data/boards.json', 'utf8'));
+          const apps = JSON.parse(readFileSync('data/apps.json', 'utf8'));
+          const merged = catalog.mergeCatalogs(boards, apps);
+          const entries = new Map();
+          for (const app of merged.apps) {
+            if (app.firmware.env === 'rpi') continue; // Raspberry Pi uses the SD-card installer
+            for (const board of merged.boards) {
+              if (!board.tool || !board.tool.fqbn) continue;
+              if (!catalog.compatibility(board, app).ok) continue;
+              const key = `${board.id}|${app.firmware.variant}`;
+              if (entries.has(key)) {
+                entries.get(key).apps.push(app.id);
+                continue;
+              }
+              entries.set(key, {
+                board: board.id,
+                family: board.family,
+                chipFamily: board.tool.chipFamily,
+                fqbn: board.tool.fqbn,
+                variant: app.firmware.variant,
+                sketch: board.family === 'esp8266' ? 'firmware/arsin_print_server_esp8266' : 'firmware/arsin_print_server',
+                apps: [app.id]
+              });
+            }
+          }
+          process.stdout.write(JSON.stringify({ include: [...entries.values()] }));
+          JS
+          node "$RUNNER_TEMP/matrix.mjs" > "$RUNNER_TEMP/matrix.json"
+          echo "matrix=$(cat "$RUNNER_TEMP/matrix.json")" >> "$GITHUB_OUTPUT"
+          echo "count=$(node -e "console.log(require('$RUNNER_TEMP/matrix.json').include.length)")" >> "$GITHUB_OUTPUT"
+          node -e "for (const e of require('$RUNNER_TEMP/matrix.json').include) console.log(e.board, e.variant, e.fqbn)"
+
+  firmware:
+    name: Compile ${{ matrix.board }} / ${{ matrix.variant }}
+    needs: prepare
+    if: ${{ needs.prepare.result == 'success' && needs.prepare.outputs.count != '0' && needs.prepare.outputs.count != '' }}
+    runs-on: ubuntu-latest
+    # A missing toolchain or a sketch that does not compile yet must never stop
+    # the site from being published.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The sketches embed the web assets, so they must be generated first.
+      - name: Build the embedded web assets
+        run: |
+          node tools/build-web-assets.mjs
+          node tools/build-web-assets.mjs --min
+
+      - name: Install arduino-cli
+        continue-on-error: true
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install the board cores
+        continue-on-error: true
+        run: |
+          arduino-cli version
+          arduino-cli core update-index
+          if [ "${{ matrix.family }}" = "esp8266" ]; then
+            arduino-cli core install esp8266:esp8266
+          else
+            arduino-cli core install esp32:esp32
+          fi
+
+      - name: Compile ${{ matrix.board }} / ${{ matrix.variant }}
+        continue-on-error: true
+        run: |
+          set -x
+          out="$RUNNER_TEMP/out/${{ matrix.board }}/${{ matrix.variant }}"
+          mkdir -p "$out"
+          variant_upper="$(echo '${{ matrix.variant }}' | tr '[:lower:]' '[:upper:]')"
+          arduino-cli compile \
+            --fqbn '${{ matrix.fqbn }}' \
+            --export-binaries \
+            --output-dir "$out" \
+            --build-property "build.extra_flags=-DARSIN_VARIANT_${variant_upper}" \
+            '${{ matrix.sketch }}'
+
+      - name: Normalise the binaries into firmware-bin/${{ matrix.board }}/${{ matrix.variant }}
+        continue-on-error: true
+        run: |
+          out="$RUNNER_TEMP/out/${{ matrix.board }}/${{ matrix.variant }}"
+          dest="firmware-bin/${{ matrix.board }}/${{ matrix.variant }}"
+          mkdir -p "$dest"
+          ls -la "$out" || true
+          for file in "$out"/*.bin; do
+            [ -e "$file" ] || continue
+            base="$(basename "$file")"
+            case "$base" in
+              # arduino-cli names the application image <sketch>.ino.bin
+              *.ino.bin) cp "$file" "$dest/firmware.bin" ;;
+              *) cp "$file" "$dest/$base" ;;
+            esac
+          done
+          ls -la "$dest" || true
+
+      - name: Upload the compiled binaries
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.board }}-${{ matrix.variant }}
+          path: firmware-bin/${{ matrix.board }}/${{ matrix.variant }}/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  site:
+    name: Build the site and the manifests
+    needs: [prepare, firmware]
+    # Always run: the site must be published even when every compile failed.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Collect the compiled firmware
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          merge-multiple: true
+          path: firmware-bin
+
+      - name: Build the embedded web assets
+        run: |
+          node tools/build-web-assets.mjs
+          node tools/build-web-assets.mjs --min
+
+      - name: Generate the installer manifests
+        run: node tools/generate-manifests.mjs
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Arsin Print Server - site build"
+            echo ""
+            if [ -n "$(find firmware-bin -name '*.bin' 2>/dev/null | head -1)" ]; then
+              echo "Firmware binaries collected:"
+              echo '```'
+              find firmware-bin -name '*.bin' | sort
+              echo '```'
+            else
+              echo "> **No firmware binaries were produced.**"
+              echo ">"
+              echo "> arduino-cli or the board cores were unavailable, or the sketch does not compile yet."
+              echo "> The site is still published: the installer marks those combinations as \"not built yet\""
+              echo "> and shows the manual build commands instead."
+            fi
+            echo ""
+            echo "Manifests:"
+            echo '```'
+            node -e "const i=require('./manifests/index.json');console.log(i.builds.length+' builds, '+i.builds.filter(b=>b.available).length+' with binaries')" 2>/dev/null || echo "(manifests/index.json not available)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stage the static site
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp *.html _site/
+          cp -r assets _site/assets
+          cp -r data _site/data
+          [ -d manifests ] && cp -r manifests _site/manifests || true
+          [ -d firmware-bin ] && cp -r firmware-bin _site/firmware-bin || true
+          touch _site/.nojekyll
+          du -sh _site
+          find _site -maxdepth 2 -type d | sort
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
