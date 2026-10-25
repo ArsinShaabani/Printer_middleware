@@ -23,3 +23,6 @@ firmware/arsin_print_server/web_assets_*.h
 .vscode/
 __pycache__/
 *.pyc
+
+# CI workflows are published from ci/github-workflows (see tools/install-workflows.mjs)
+.github/workflows/

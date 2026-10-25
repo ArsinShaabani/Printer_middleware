@@ -201,9 +201,20 @@ lpadmin -p Arsin_Labels -E -v socket://arsin_print_server.local:9100 -m raw
 
 ## CI / CD
 
-- `test.yml` - unit tests, catalog validation.
-- `build-firmware.yml` - compiles every compatible board/variant pair, publishes binaries to a GitHub release on tags.
-- `deploy-pages.yml` - builds the web assets + manifests, compiles the firmware matrix, publishes the installer site to GitHub Pages.
+The workflows live in [`ci/github-workflows/`](ci/github-workflows) and are enabled with one command
+(the automation token used to prepare this repository has no `workflows` permission, so GitHub refuses
+to create `.github/workflows/*` from this branch):
+
+```bash
+node tools/install-workflows.mjs     # copies them into .github/workflows/
+git add .github/workflows && git commit -m 'ci: enable the workflows' && git push
+```
+
+Then set **Settings -> Pages -> Source: GitHub Actions** once. After that:
+
+- `test.yml` - unit tests and catalog validation on every push / pull request.
+- `deploy-pages.yml` - builds the web assets + manifests, compiles every board/variant pair, publishes the installer site (with browser flashing) to GitHub Pages.
+- `build-firmware.yml` - compiles the same matrix and attaches the binaries to a GitHub release on tag pushes.
 
 ### Large print jobs
 
