@@ -135,14 +135,17 @@ function renderMaintenance() {
   const host = $('#maint-grid');
   host.innerHTML = '';
   const actions = actionsForLanguage(state.lang);
-  $('#maint-count').textContent = actions.filter((a) => a.supported).length + ' of ' + actions.length + ' actions supported by ' + (LANGUAGE_BY_ID[state.lang] || {}).name;
+  $('#maint-count').textContent = t('troubleshoot.count', '{supported} of {total} actions supported by {name}')
+    .replace('{supported}', String(actions.filter((a) => a.supported).length))
+    .replace('{total}', String(actions.length))
+    .replace('{name}', (LANGUAGE_BY_ID[state.lang] || {}).name || '');
   for (const action of actions) {
     const card = el('div', { class: 'card pad-sm' + (action.supported ? '' : ' disabled') }, [
       el('div', { class: 'spread' }, [
-        el('strong', { text: action.name }),
-        el('span', { class: 'badge ' + (action.confidence === 'standard' ? 'ok' : action.confidence === 'vendor' ? 'info' : 'warn'), text: action.confidence })
+        el('strong', { text: t('maint.action.' + action.id, action.name) }),
+        el('span', { class: 'badge ' + (action.confidence === 'standard' ? 'ok' : action.confidence === 'vendor' ? 'info' : 'warn'), text: t('common.confidence.' + action.confidence, action.confidence) })
       ]),
-      el('p', { class: 'small muted', text: action.desc })
+      el('p', { class: 'small muted', text: t('maint.action.' + action.id + '.desc', action.desc) })
     ]);
     const params = {};
     if (action.params && action.params.length) {

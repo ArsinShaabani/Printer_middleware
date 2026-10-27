@@ -75,6 +75,32 @@ test('every key used by a page exists in both dictionaries', () => {
   assert.deepEqual(missing, [], 'untranslated keys');
 });
 
+test('every maintenance action and group has a translation in both languages', async () => {
+  const { en, fa } = dictionary();
+  const { ACTIONS, LANGUAGES, actionsForLanguage } = await import('../assets/js/core/commands.js');
+  const missing = [];
+  for (const action of ACTIONS) {
+    for (const key of [`maint.action.${action.id}`, `maint.action.${action.id}.desc`]) {
+      if (!en.has(key)) missing.push(`${key} (en)`);
+      if (!fa.has(key)) missing.push(`${key} (fa)`);
+    }
+  }
+  for (const group of [...new Set(ACTIONS.map((a) => a.group))]) {
+    const key = `maint.group.${group}`;
+    if (!en.has(key)) missing.push(`${key} (en)`);
+    if (!fa.has(key)) missing.push(`${key} (fa)`);
+  }
+  // The confidence badge is rendered from the per-language action list.
+  const confidences = new Set();
+  for (const lang of LANGUAGES) for (const action of actionsForLanguage(lang.id)) if (action.confidence) confidences.add(action.confidence);
+  assert.ok(confidences.size >= 2, 'the language definitions report a confidence level');
+  for (const confidence of confidences) {
+    const key = `common.confidence.${confidence}`;
+    if (!en.has(key) || !fa.has(key)) missing.push(`${key}`);
+  }
+  assert.deepEqual(missing, [], 'untranslated maintenance strings');
+});
+
 test('the pages declare a Persian-capable font stack and RTL-safe layout', () => {
   const css = readFileSync(join(ROOT, 'assets/css/app.css'), 'utf8');
   assert.match(css, /--sans:[^;]*Vazirmatn/, 'the sans stack prefers Vazirmatn');

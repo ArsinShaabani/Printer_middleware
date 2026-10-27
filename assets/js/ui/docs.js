@@ -104,9 +104,9 @@ function renderLanguages() {
           hex = '(not defined)';
         }
         return el('tr', {}, [
-          el('td', {}, [el('strong', { text: a.name })]),
-          el('td', { class: 'small', text: a.group }),
-          el('td', { class: 'small', text: a.desc }),
+          el('td', {}, [el('strong', { text: t('maint.action.' + a.id, a.name) })]),
+          el('td', { class: 'small', text: t('maint.group.' + a.group, a.group) }),
+          el('td', { class: 'small', text: t('maint.action.' + a.id + '.desc', a.desc) }),
           el('td', { class: 'mono small', text: hex })
         ]);
       }))
