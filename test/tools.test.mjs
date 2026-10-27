@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, copyFile, rm, readFile, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,6 +120,26 @@ test('the shipped web-asset bundle embeds the designer, the maintenance console 
   for (const needed of ['/designer.html', '/assets/js/ui/designer.js', '/troubleshoot.html', '/assets/js/ui/troubleshoot.js']) {
     assert.ok(miniPaths.includes(needed), `the ESP8266 bundle must embed ${needed}`);
   }
+});
+
+test('every asset a device page references is embedded, so nothing 404s on the board', async () => {
+  const { buildAssets } = await import('../tools/build-web-assets.mjs');
+  const assets = await buildAssets();
+  const paths = new Set(assets.map((a) => a.path));
+  const missing = [];
+  for (const asset of assets) {
+    if (!asset.path.endsWith('.html')) continue;
+    const html = readFileSync(join(ROOT, asset.path.replace(/^\//, '')), 'utf8');
+    for (const m of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
+      const url = m[1];
+      if (/^(https?:|data:|mailto:|#)/i.test(url)) continue;
+      const clean = url.split(/[?#]/)[0].replace(/^\.\//, '');
+      if (!clean || clean.endsWith('/')) continue;
+      const target = '/' + clean;
+      if (!paths.has(target)) missing.push(`${asset.path} -> ${url}`);
+    }
+  }
+  assert.deepEqual(missing, [], 'pages reference assets that are not embedded in the firmware');
 });
 
 /* ------------------------------------------------------------ serve.mjs ---- */
