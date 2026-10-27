@@ -128,7 +128,6 @@ bool printerUartBegin() {
          g_config.parity[0], (unsigned)g_config.stopBits);
   }
   g_softSerial.begin(baud);
-  g_softSerial.setRxBufferSize(256);
   g_uartReady = true;
 #else
   const uint32_t config = (uint32_t)((g_config.dataBits - 5) & 0x03) |

@@ -92,8 +92,8 @@ const size_t kSseMaxClients = 3;
 const uint32_t kRawClientIdleMs = 15000;
 
 ArsinWebServer g_server;
-WiFiServer g_rawServer;
-WiFiServer g_telnetServer;
+WiFiServer g_rawServer(0);
+WiFiServer g_telnetServer(0);
 WiFiClient g_rawClients[2];
 uint32_t g_rawLast[2] = {0, 0};
 WiFiClient g_telnetClient;
@@ -1390,7 +1390,13 @@ void webhookPost(const char* jobId, uint32_t bytes) {
   }
 
   WiFiClient client;
-  if (!client.connect(host, port, 2000)) {
+#if defined(ARDUINO_ARCH_ESP8266)
+  client.setTimeout(2000);
+  const bool webhookConnected = client.connect(host, port);
+#else
+  const bool webhookConnected = client.connect(host, port, 2000);
+#endif
+  if (!webhookConnected) {
     LOGW("webhook: cannot reach %s:%u", host, (unsigned)port);
     return;
   }

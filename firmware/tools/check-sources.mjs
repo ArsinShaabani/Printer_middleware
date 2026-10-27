@@ -234,12 +234,15 @@ function checkIncludes(file, original, filesInDir) {
   });
 }
 
-const DEFINITION_RE = /^([A-Za-z_][\w:<>,\s\*&]*?)\b([A-Za-z_]\w*)\s*\(([^;{]*)\)\s*\{\s*$/;
+const DEFINITION_RE = /^([A-Za-z_][\w:<>,\s\*&]*?)\b([A-Za-z_]\w*)\s*\(([^;{]*)\)\s*\{/;
 const NOT_A_DEFINITION = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'sizeof', 'defined']);
 
 function checkDuplicateDefinitions(file, original, seen) {
   const lines = original.split('\n');
+  let conditional = 0; /* how many #if blocks are open at this point */
   lines.forEach((line, index) => {
+    if (/^\s*#\s*(if|ifdef|ifndef)\b/.test(line)) conditional++;
+    else if (/^\s*#\s*endif\b/.test(line)) conditional = Math.max(0, conditional - 1);
     if (/^\s/.test(line)) return; /* only file scope definitions (column 0) */
     const m = DEFINITION_RE.exec(line);
     if (!m) return;
@@ -247,11 +250,17 @@ function checkDuplicateDefinitions(file, original, seen) {
     if (NOT_A_DEFINITION.has(name)) return;
     const previous = seen.get(name);
     if (previous && previous.file !== file) {
-      report('error', file, index + 1,
-        `duplicate definition of '${name}' (already in ${relative(firmwareRoot, previous.file)}:${previous.line})`);
+      const message = `duplicate definition of '${name}' (already in ${relative(firmwareRoot, previous.file)}:${previous.line})`;
+      if (conditional > 0 && previous.conditional > 0) {
+        /* Both copies sit in #if blocks - usually complementary (a real
+         * implementation vs. a stub) but the guards must be exact. */
+        warnings.push(`${file}:${index + 1}: ${message} - both are inside #if blocks, verify the guards are mutually exclusive`);
+      } else {
+        report('error', file, index + 1, message);
+      }
       return;
     }
-    if (!previous) seen.set(name, { file, line: index + 1 });
+    if (!previous) seen.set(name, { file, line: index + 1, conditional });
   });
 }
 
@@ -283,6 +292,29 @@ for (const sketch of sketches) {
     checkIncludes(file, original, namesInDir);
     checkDuplicateDefinitions(file, original, definitions);
     for (const m of original.matchAll(/^\s*#\s*include\s+"([^"]+)"/gm)) includedHeaders.add(m[1]);
+  }
+
+  /* A function the sketch declares in its own header but never defines is a
+   * link error (undefined reference) - only the linker used to catch it. */
+  const declared = new Map();
+  const defined = new Set();
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    if (file.endsWith('.h')) {
+      for (const m of text.matchAll(/^\s*(?:extern\s+)?[A-Za-z_][\w:<>,\s\*&]*?\b(arsin\w+|config\w+|printer\w+|store\w+|web\w+|net\w+)\s*\(([^;{]*)\)\s*;/gm)) {
+        declared.set(m[1], file);
+      }
+    } else {
+      /* signatures may span several lines */
+      for (const m of text.matchAll(/^([A-Za-z_][\w:<>,\s\*&]*?)\b([A-Za-z_]\w*)\s*\(([^;{)]*)\)\s*\{/gm)) {
+        if (!NOT_A_DEFINITION.has(m[2])) defined.add(m[2]);
+      }
+    }
+  }
+  for (const [name, file] of declared) {
+    if (!defined.has(name)) {
+      problems.push(`${relative(firmwareRoot, file)}: '${name}' is declared but never defined (link error)`);
+    }
   }
 
   for (const file of files) {
