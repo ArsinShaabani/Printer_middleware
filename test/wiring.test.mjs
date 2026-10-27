@@ -47,7 +47,7 @@ test('renderWiringSvg produces a well-formed SVG with every link label', () => {
 
   const doc = parseSvg(svg);
   const root = doc.documentElement;
-  assert.equal(root.getAttribute('viewBox'), '0 0 960 420');
+  assert.equal(root.getAttribute('viewBox'), '0 0 900 492');
   assert.equal(root.getAttribute('role'), 'img');
   assert.equal(root.getAttribute('aria-label'), wiring.title);
 
@@ -163,7 +163,7 @@ test('signalKind and signalColor classify every documented signal', () => {
     ...wiring,
     links: [{ signal: 'DTR', board: 'GPIO 4', printer: 'Printer BUSY', cable: 'Jumper wire', required: false }]
   };
-  assert.ok(renderWiringSvg(withOptional, b, a).includes('stroke-dasharray="6 5"'), 'optional links are dashed');
+  assert.ok(renderWiringSvg(withOptional, b, a).includes('stroke-dasharray="8 6"'), 'optional links are dashed');
 });
 
 test('renderWiringSvg draws the wireless placeholder when nothing must be wired', () => {
@@ -210,15 +210,23 @@ test('the diagram layout stays readable: labels stay inside the boxes and rows n
           assert.ok(rows[i] - rows[i - 1] >= 24, `${b.id}/${a.id}/${transport.id}: wire rows overlap`);
         }
         // Pin labels are anchored against the box edges and must fit inside them.
-        const boardLabels = nodes.filter((n) => n.anchor === 'end' && Math.abs(n.x - 278) < 1);
+        const boardLabels = nodes.filter((n) => n.anchor === 'end' && Math.abs(n.x - 290) < 1);
         for (const label of boardLabels) {
           const width = label.text.length * label.size * 0.58;
           assert.ok(label.x - width >= 24, `${b.id}: "${label.text}" overflows the board box`);
         }
-        const printerLabels = nodes.filter((n) => n.anchor === 'start' && Math.abs(n.x - 682) < 1);
+        const printerLabels = nodes.filter((n) => n.anchor === 'start' && Math.abs(n.x - 610) < 1);
         for (const label of printerLabels) {
           const width = label.text.length * label.size * 0.58;
           assert.ok(label.x + width <= 936, `${b.id}: "${label.text}" overflows the printer box`);
+        }
+        // Readability: the labels must be large enough to survive the SVG being
+        // scaled down to a phone width.
+        for (const node of nodes) {
+          assert.ok(node.size >= 12, `${b.id}/${a.id}/${transport.id}: "${node.text}" is set at ${node.size}px`);
+        }
+        for (const label of [...boardLabels, ...printerLabels]) {
+          assert.ok(label.size >= 14, `${b.id}: pin label "${label.text}" must be at least 14px (got ${label.size})`);
         }
         // Each wire keeps the full sentence as an accessible <title>.
         const titles = [...root.querySelectorAll('title')].map((n) => n.textContent);

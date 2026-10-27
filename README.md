@@ -273,11 +273,11 @@ Then set **Settings -> Pages -> Source: GitHub Actions** once. After that:
 - `deploy-pages.yml` - builds the web assets + manifests, compiles every board/variant pair, publishes the installer site (with browser flashing) to GitHub Pages.
 - `build-firmware.yml` - compiles the same matrix and attaches the binaries to a GitHub release on tag pushes.
 
-> **Both firmware workflows must register the ESP board-manager URLs before installing a
-> core.** Neither `esp32:esp32` nor `esp8266:esp8266` exists in the default Arduino index, so
-> a bare `arduino-cli core install` fails, every compile step is skipped and the release ends
-> up with **no firmware binaries** - the site still publishes, but the installer can only say
-> "not built yet". The workflows do this in their *Install the board cores* step:
+> **Why the firmware build needs care.** Neither `esp32:esp32` nor `esp8266:esp8266` is in the
+> default Arduino index, so a plain `arduino-cli core install` fails on a workstation unless the
+> board-manager URLs are registered first (see *Build the firmware yourself* above). GitHub's
+> runner image already resolves `esp32:esp32`, so the workflows work there either way - they
+> register the URLs anyway to make the step deterministic across runner images and CLI versions:
 >
 > ```yaml
 > arduino-cli config init --overwrite || true
@@ -287,9 +287,12 @@ Then set **Settings -> Pages -> Source: GitHub Actions** once. After that:
 > arduino-cli core update-index
 > ```
 >
-> The compile steps stay `continue-on-error` so a broken sketch never blocks the site, but a
-> successful run must show the binaries in the job summary ("Firmware binaries collected").
-> If it says "No firmware binaries were produced", read that step's log first.
+> The compile steps are `continue-on-error` so a broken sketch never blocks the site - which means
+> a run can be **green while producing no firmware at all**. Always check the job summary: it must
+> list the binaries under *Firmware binaries collected*. If it says
+> "No firmware binaries were produced", open one of the *Compile …* jobs and read the compiler
+> output; `npm run check:firmware` now catches the core-independent C++ errors locally
+> (`firmware/tools/check-syntax.mjs`), which is exactly what was missing before.
 
 ### Large print jobs
 

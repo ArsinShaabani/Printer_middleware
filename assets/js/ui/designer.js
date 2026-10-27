@@ -34,6 +34,7 @@ const state = {
   history: [],
   future: [],
   clipboard: null,
+  guides: [],
   /** px width of the paper at the current zoom (drives the rulers). */
   paperPx: 400
 };
@@ -75,6 +76,10 @@ function updateHistoryButtons() {
   const fwd = $('#btn-redo');
   if (back) back.disabled = state.history.length === 0;
   if (fwd) fwd.disabled = state.future.length === 0;
+  const tbUndo = $('#tb-undo');
+  const tbRedo = $('#tb-redo');
+  if (tbUndo) tbUndo.disabled = state.history.length === 0;
+  if (tbRedo) tbRedo.disabled = state.future.length === 0;
 }
 
 /* ---------------------------------------------------------------- setup */
@@ -113,13 +118,43 @@ function currentMode() {
 
 /* -------------------------------------------------------------- elements */
 
+/** Inline SVG icons (16x16, currentColor) so the palette looks like a real tool. */
+const ICONS = {
+  text: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4h10M8 4v9M6 13h4"/></svg>',
+  barcode: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3v10M5.5 3v10M8 3v10M10.5 3v10M13 3v10"/></svg>',
+  qrcode: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><path d="M9 9h2v2H9zM12 12h1.5v1.5H12z" fill="currentColor" stroke="none"/></svg>',
+  image: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><circle cx="6" cy="6.5" r="1.1" fill="currentColor" stroke="none"/><path d="M3 12l3.2-3.2 2.4 2.4L11 9l2.2 2.2"/></svg>',
+  line: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 8h11"/></svg>',
+  box: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="4" width="11" height="8" rx="1.5"/></svg>'
+};
+
+Object.assign(ICONS, {
+  alignLeft: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 2v12"/><rect x="5" y="4" width="8" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="5" y="9" width="5" height="3" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>',
+  alignCenterH: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 2v12"/><rect x="3" y="4" width="10" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="4.5" y="9" width="7" height="3" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>',
+  alignRight: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M13.5 2v12"/><rect x="3" y="4" width="8" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="6" y="9" width="5" height="3" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>',
+  alignTop: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2.5h12"/><rect x="4" y="5" width="3" height="8" rx="1" fill="currentColor" stroke="none"/><rect x="9" y="5" width="3" height="5" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>',
+  alignCenterV: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 8h12"/><rect x="4" y="3" width="3" height="10" rx="1" fill="currentColor" stroke="none"/><rect x="9" y="4.5" width="3" height="7" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>',
+  alignBottom: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 13.5h12"/><rect x="4" y="3" width="3" height="8" rx="1" fill="currentColor" stroke="none"/><rect x="9" y="6" width="3" height="5" rx="1" fill="currentColor" stroke="none" opacity=".55"/></svg>',
+  toFront: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.5" y="2.5" width="8" height="8" rx="1.5"/><rect x="2.5" y="5.5" width="8" height="8" rx="1.5" fill="currentColor" fill-opacity=".18"/></svg>',
+  toBack: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="8" height="8" rx="1.5"/><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="currentColor" fill-opacity=".18"/></svg>',
+  duplicate: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1 1 0 00-1-1h-6a1 1 0 00-1 1v6a1 1 0 001 1h2"/></svg>',
+  trash: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.2h5.6l.7-8.2M6.8 7v3.6M9.2 7v3.6"/></svg>',
+  lock: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>',
+  unlock: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 014.8-.9"/></svg>',
+  up: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5V3.5M4.5 7L8 3.5 11.5 7"/></svg>',
+  down: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5v9M4.5 9l3.5 3.5L11.5 9"/></svg>',
+  undo: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h6.5a3 3 0 010 6H7M3 8l3-3M3 8l3 3"/></svg>',
+  redo: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8H6.5a3 3 0 000 6H9M13 8l-3-3M13 8l-3 3"/></svg>',
+  zoomFit: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V3.5H5M11 3.5h2.5V6M13.5 10v2.5H11M5 12.5H2.5V10"/></svg>'
+});
+
 const ELEMENT_TYPES = [
-  { type: 'text', icon: 'T', key: 'designer.add.text', fallback: 'Text' },
-  { type: 'barcode', icon: 'IIII', key: 'designer.add.barcode', fallback: 'Barcode' },
-  { type: 'qrcode', icon: 'QR', key: 'designer.add.qrcode', fallback: 'QR code' },
-  { type: 'image', icon: 'IMG', key: 'designer.add.image', fallback: 'Image / logo' },
-  { type: 'line', icon: '---', key: 'designer.add.line', fallback: 'Line' },
-  { type: 'box', icon: '[ ]', key: 'designer.add.box', fallback: 'Box / frame' }
+  { type: 'text', key: 'designer.add.text', fallback: 'Text' },
+  { type: 'barcode', key: 'designer.add.barcode', fallback: 'Barcode' },
+  { type: 'qrcode', key: 'designer.add.qrcode', fallback: 'QR code' },
+  { type: 'image', key: 'designer.add.image', fallback: 'Image / logo' },
+  { type: 'line', key: 'designer.add.line', fallback: 'Line' },
+  { type: 'box', key: 'designer.add.box', fallback: 'Box / frame' }
 ];
 
 /** Ready-made elements: a good starting point beats six empty buttons. */
@@ -286,7 +321,7 @@ function renderPalette() {
   for (const type of ELEMENT_TYPES) {
     basic.append(
       el('button', { class: 'palette-btn', 'data-add': type.type, title: t(type.key, type.fallback) }, [
-        el('span', { class: 'palette-icon', text: type.icon }),
+        el('span', { class: 'palette-icon', html: ICONS[type.type] }),
         el('span', { class: 'palette-label', text: t(type.key, type.fallback) })
       ])
     );
@@ -313,15 +348,16 @@ function renderElementList() {
     host.append(
       el('div', {
         class: 'el-item' + (element.id === state.selected ? ' selected' : '') + (element.locked ? ' locked' : ''),
+        dataset: { type: element.type },
         onclick: () => selectElement(element.id)
       }, [
-        el('span', { class: 'type', text: element.type }),
+        el('span', { class: 'el-icon', html: ICONS[element.type] || '' }),
         el('span', { class: 'grow', text: String(elementLabel(element)).slice(0, 18) }),
-        el('button', { class: 'icon-btn small ghost', text: element.locked ? '\u{1F512}' : '\u{1F513}', title: element.locked ? 'Unlock' : 'Lock', onclick: (e) => { e.stopPropagation(); toggleLock(element); } }),
-        el('button', { class: 'icon-btn small ghost', text: '\u2191', title: 'Bring forward', onclick: (e) => { e.stopPropagation(); zOrder(element, 'forward'); } }),
-        el('button', { class: 'icon-btn small ghost', text: '\u2193', title: 'Send backward', onclick: (e) => { e.stopPropagation(); zOrder(element, 'backward'); } }),
-        el('button', { class: 'icon-btn small ghost', text: '\u29C9', title: t('action.duplicate'), onclick: (e) => { e.stopPropagation(); duplicateElement(element); } }),
-        el('button', { class: 'icon-btn small ghost', text: '\u2715', title: t('action.delete'), onclick: (e) => { e.stopPropagation(); removeElement(element); } })
+        el('button', { class: 'icon-btn small ghost', html: element.locked ? ICONS.lock : ICONS.unlock, title: element.locked ? t('designer.unlock', 'Unlock') : t('designer.lock', 'Lock'), onclick: (e) => { e.stopPropagation(); toggleLock(element); } }),
+        el('button', { class: 'icon-btn small ghost', html: ICONS.up, title: t('designer.forward', 'Bring forward'), onclick: (e) => { e.stopPropagation(); zOrder(element, 'forward'); } }),
+        el('button', { class: 'icon-btn small ghost', html: ICONS.down, title: t('designer.backward', 'Send backward'), onclick: (e) => { e.stopPropagation(); zOrder(element, 'backward'); } }),
+        el('button', { class: 'icon-btn small ghost', html: ICONS.duplicate, title: t('action.duplicate'), onclick: (e) => { e.stopPropagation(); duplicateElement(element); } }),
+        el('button', { class: 'icon-btn small ghost', html: ICONS.trash, title: t('action.delete'), onclick: (e) => { e.stopPropagation(); removeElement(element); } })
       ])
     );
   });
@@ -462,6 +498,7 @@ function renderProps() {
     host.append(propCheck(element, 'italic', 'Italic (preview / raster)'));
     host.append(propCheck(element, 'underline', 'Underline (preview / raster)'));
     host.append(propCheck(element, 'reverse', 'Inverse - white on black'));
+    host.append(propCheck(element, 'border', t('designer.border', 'Frame around the text'), () => renderPreview()));
   }
 
   if (element.type === 'barcode') {
@@ -472,7 +509,8 @@ function renderProps() {
     host.append(el('div', { class: 'prop-grid' }, [
       field('Bar height (mm)', propNumber(element, 'heightMm', { step: '0.5', min: 3, max: 80 })),
       field('Narrow bar (mm)', propNumber(element, 'narrowMm', { step: '0.05', min: 0.1, max: 2 })),
-      field('Human text (mm)', propNumber(element, 'textSizeMm', { step: '0.2', min: 1, max: 10 }))
+      field('Human text (mm)', propNumber(element, 'textSizeMm', { step: '0.2', min: 1, max: 10 })),
+      field(t('designer.quiet', 'Quiet zone (modules)'), propNumber(element, 'quietModules', { step: '1', min: 0, max: 20 }), t('designer.previewOnly', 'Preview and raster output'))
     ]));
     host.append(propCheck(element, 'showText', 'Show the human readable text'));
   }
@@ -486,7 +524,8 @@ function renderProps() {
         { value: 'M', label: 'M - 15% recovery' },
         { value: 'Q', label: 'Q - 25% recovery' },
         { value: 'H', label: 'H - 30% recovery' }
-      ]))
+      ])),
+      field(t('designer.quiet', 'Quiet zone (modules)'), propNumber(element, 'quietModules', { step: '1', min: 0, max: 16 }), t('designer.previewOnly', 'Preview and raster output'))
     ]));
     host.append(el('div', { class: 'hint', text: t('designer.qrHint', 'Higher error correction survives scratches but makes the modules smaller.') }));
   }
@@ -520,7 +559,8 @@ function renderProps() {
         { value: 'xMidYMid meet', label: 'Contain (keep ratio)' },
         { value: 'none', label: 'Stretch to box' },
         { value: 'xMidYMid slice', label: 'Cover (crop)' }
-      ]))
+      ])),
+      field(t('designer.rotate', 'Rotate the image'), propSelect(element, 'rotate', ROTATIONS, () => renderPreview()), t('designer.previewOnly', 'Preview and raster output'))
     ]));
     host.append(propCheck(element, 'invert', 'Invert black / white'));
   }
@@ -528,7 +568,12 @@ function renderProps() {
   if (element.type === 'line') {
     host.append(el('div', { class: 'prop-grid' }, [
       field('Length (mm)', propNumber(element, 'w', { step: '0.5', min: 0.5, max: state.doc.width })),
-      field('Thickness (mm)', propNumber(element, 'thicknessMm', { step: '0.1', min: 0.1, max: 5 }))
+      field('Thickness (mm)', propNumber(element, 'thicknessMm', { step: '0.1', min: 0.1, max: 5 })),
+      field(t('designer.style', 'Style'), propSelect(element, 'style', [
+        { value: 'solid', label: t('designer.style.solid', 'Solid') },
+        { value: 'dashed', label: t('designer.style.dashed', 'Dashed') },
+        { value: 'dotted', label: t('designer.style.dotted', 'Dotted') }
+      ], () => renderPreview()))
     ]));
     host.append(el('div', { class: 'row tight mt1' }, [
       el('button', { class: 'btn small', text: 'Horizontal', onclick: () => { pushHistory(); element.h = 0; element.w = element.w || 40; renderAll(); } }),
@@ -539,7 +584,12 @@ function renderProps() {
   if (element.type === 'box') {
     host.append(el('div', { class: 'prop-grid' }, [
       field('Thickness (mm)', propNumber(element, 'thicknessMm', { step: '0.1', min: 0.1, max: 5 })),
-      field('Corner radius (mm)', propNumber(element, 'radiusMm', { step: '0.5', min: 0, max: 20 }), t('designer.radiusHint', 'Honoured by ZPL; other languages print square corners'))
+      field('Corner radius (mm)', propNumber(element, 'radiusMm', { step: '0.5', min: 0, max: 20 }), t('designer.radiusHint', 'Honoured by ZPL; other languages print square corners')),
+      field(t('designer.style', 'Style'), propSelect(element, 'style', [
+        { value: 'solid', label: t('designer.style.solid', 'Solid') },
+        { value: 'dashed', label: t('designer.style.dashed', 'Dashed') },
+        { value: 'dotted', label: t('designer.style.dotted', 'Dotted') }
+      ], () => renderPreview()), t('designer.previewOnly', 'Preview and raster output'))
     ]));
     host.append(propCheck(element, 'filled', 'Filled (solid black)'));
   }
@@ -558,34 +608,29 @@ function renderArrange() {
   if (!host) return;
   host.innerHTML = '';
   const disabled = !selectedElement();
-  const mk = (label, title, fn, attrs = {}) => el('button', { class: 'btn small ghost', text: label, title, disabled, ...attrs, onclick: fn });
+  const mk = (icon, title, fn, attrs = {}) => el('button', { class: 'btn small ghost', html: icon, title, disabled, ...attrs, onclick: fn });
   host.append(
     el('div', { class: 'arrange-grid' }, [
-      mk('\u21E4', 'Align left', () => alignElement('left'), { 'data-align': 'left' }),
-      mk('\u2194', 'Centre horizontally', () => alignElement('center-h'), { 'data-align': 'center-h' }),
-      mk('\u21E5', 'Align right', () => alignElement('right'), { 'data-align': 'right' }),
-      mk('\u21E1', 'Align top', () => alignElement('top'), { 'data-align': 'top' }),
-      mk('\u2195', 'Centre vertically', () => alignElement('center-v'), { 'data-align': 'center-v' }),
-      mk('\u21E3', 'Align bottom', () => alignElement('bottom'), { 'data-align': 'bottom' })
+      mk(ICONS.alignLeft, t('designer.align.left', 'Align left'), () => alignElement('left'), { 'data-align': 'left' }),
+      mk(ICONS.alignCenterH, t('designer.align.centerH', 'Centre horizontally'), () => alignElement('center-h'), { 'data-align': 'center-h' }),
+      mk(ICONS.alignRight, t('designer.align.right', 'Align right'), () => alignElement('right'), { 'data-align': 'right' }),
+      mk(ICONS.alignTop, t('designer.align.top', 'Align top'), () => alignElement('top'), { 'data-align': 'top' }),
+      mk(ICONS.alignCenterV, t('designer.align.centerV', 'Centre vertically'), () => alignElement('center-v'), { 'data-align': 'center-v' }),
+      mk(ICONS.alignBottom, t('designer.align.bottom', 'Align bottom'), () => alignElement('bottom'), { 'data-align': 'bottom' })
     ])
   );
   host.append(
     el('div', { class: 'row tight mt1' }, [
-      mk(t('designer.toFront', 'Bring to front'), 'Bring to front', () => zOrder(selectedElement(), 'front'), { 'data-arrange': 'front' }),
-      mk(t('designer.toBack', 'Send to back'), 'Send to back', () => zOrder(selectedElement(), 'back'), { 'data-arrange': 'back' })
+      mk(ICONS.toFront, t('designer.toFront', 'Bring to front'), () => zOrder(selectedElement(), 'front'), { 'data-arrange': 'front' }),
+      mk(ICONS.toBack, t('designer.toBack', 'Send to back'), () => zOrder(selectedElement(), 'back'), { 'data-arrange': 'back' })
     ])
   );
   host.append(
     el('div', { class: 'row tight mt1' }, [
-      mk(t('designer.duplicate', 'Duplicate'), t('action.duplicate'), () => duplicateElement(selectedElement()), { 'data-arrange': 'duplicate' }),
-      mk(t('designer.copy', 'Copy'), t('action.copy', 'Copy'), () => copyElement(selectedElement()), { 'data-arrange': 'copy' }),
-      mk(t('designer.paste', 'Paste'), t('designer.paste', 'Paste'), () => pasteElement(), { 'data-arrange': 'paste' })
-    ])
-  );
-  host.append(
-    el('div', { class: 'row tight mt1' }, [
-      mk(t('designer.undo', 'Undo'), 'Undo (Ctrl+Z)', () => undo(), { 'data-arrange': 'undo' }),
-      mk(t('designer.redo', 'Redo'), 'Redo (Ctrl+Shift+Z)', () => redo(), { 'data-arrange': 'redo' })
+      mk(ICONS.duplicate, t('designer.duplicate', 'Duplicate'), () => duplicateElement(selectedElement()), { 'data-arrange': 'duplicate' }),
+      mk(ICONS.trash, t('designer.delete', 'Delete'), () => removeElement(selectedElement()), { 'data-arrange': 'delete' }),
+      mk(ICONS.undo, t('designer.undo', 'Undo'), () => undo(), { 'data-arrange': 'undo' }),
+      mk(ICONS.redo, t('designer.redo', 'Redo'), () => redo(), { 'data-arrange': 'redo' })
     ])
   );
 }
@@ -706,11 +751,100 @@ function handlePoints(box) {
   };
 }
 
-/** Selection outline + resize handles, drawn in label (dot) coordinates. */
+/* ------------------------------------------------------- smart guides */
+
+const GUIDE_TOL_MM = 0.9;
+
+/** Candidate edges to align to: the label itself plus every other element. */
+function guideTargets(exceptId) {
+  const xs = [0, state.doc.width / 2, state.doc.width];
+  const ys = [0, state.doc.height / 2, state.doc.height];
+  for (const element of state.doc.elements) {
+    if (element.id === exceptId) continue;
+    const box = elementBoxMm(element);
+    xs.push(box.x, box.x + box.w / 2, box.x + box.w);
+    ys.push(box.y, box.y + box.h / 2, box.y + box.h);
+  }
+  return { xs, ys };
+}
+
+/** Snap a moved element to the nearest edge/centre and record the guide lines. */
+function applySmartGuides(element, box) {
+  const targets = guideTargets(element.id);
+  let bestX = GUIDE_TOL_MM;
+  let bestY = GUIDE_TOL_MM;
+  let dx = 0;
+  let dy = 0;
+  let guideX = null;
+  let guideY = null;
+  for (const edge of [box.x, box.x + box.w / 2, box.x + box.w]) {
+    for (const target of targets.xs) {
+      const d = Math.abs(edge - target);
+      if (d < bestX) { bestX = d; dx = target - edge; guideX = target; }
+    }
+  }
+  for (const edge of [box.y, box.y + box.h / 2, box.y + box.h]) {
+    for (const target of targets.ys) {
+      const d = Math.abs(edge - target);
+      if (d < bestY) { bestY = d; dy = target - edge; guideY = target; }
+    }
+  }
+  state.guides = [];
+  if (guideX != null) {
+    element.x = clamp(element.x + dx, 0, Math.max(0, state.doc.width - 0.5));
+    state.guides.push({ axis: 'x', pos: guideX });
+  }
+  if (guideY != null) {
+    element.y = clamp(element.y + dy, 0, Math.max(0, state.doc.height - 0.5));
+    state.guides.push({ axis: 'y', pos: guideY });
+  }
+}
+
+/** Quick actions above the canvas (mirrors the arrange panel). */
+function renderCanvasToolbar() {
+  const host = $('#canvas-toolbar');
+  if (!host) return;
+  host.innerHTML = '';
+  const disabled = !selectedElement();
+  const mk = (icon, title, fn, attrs = {}) => el('button', { class: 'icon-btn ghost', html: icon, title, disabled, ...attrs, onclick: fn });
+  host.append(
+    mk(ICONS.undo, t('designer.undo', 'Undo') + ' (Ctrl+Z)', () => undo(), { id: 'tb-undo' }),
+    mk(ICONS.redo, t('designer.redo', 'Redo') + ' (Ctrl+Shift+Z)', () => redo(), { id: 'tb-redo' }),
+    el('span', { class: 'toolbar-sep' }),
+    mk(ICONS.alignLeft, t('designer.align.left', 'Align left'), () => alignElement('left'), { 'data-align': 'left' }),
+    mk(ICONS.alignCenterH, t('designer.align.centerH', 'Centre horizontally'), () => alignElement('center-h'), { 'data-align': 'center-h' }),
+    mk(ICONS.alignRight, t('designer.align.right', 'Align right'), () => alignElement('right'), { 'data-align': 'right' }),
+    mk(ICONS.alignTop, t('designer.align.top', 'Align top'), () => alignElement('top'), { 'data-align': 'top' }),
+    mk(ICONS.alignCenterV, t('designer.align.centerV', 'Centre vertically'), () => alignElement('center-v'), { 'data-align': 'center-v' }),
+    mk(ICONS.alignBottom, t('designer.align.bottom', 'Align bottom'), () => alignElement('bottom'), { 'data-align': 'bottom' }),
+    el('span', { class: 'toolbar-sep' }),
+    mk(ICONS.toFront, t('designer.toFront', 'Bring to front'), () => zOrder(selectedElement(), 'front'), { 'data-arrange': 'front' }),
+    mk(ICONS.toBack, t('designer.toBack', 'Send to back'), () => zOrder(selectedElement(), 'back'), { 'data-arrange': 'back' }),
+    mk(ICONS.duplicate, t('designer.duplicate', 'Duplicate'), () => duplicateElement(selectedElement()), { 'data-arrange': 'duplicate' }),
+    mk(ICONS.trash, t('designer.delete', 'Delete'), () => removeElement(selectedElement()), { 'data-arrange': 'delete' }),
+    el('span', { class: 'toolbar-sep' }),
+    mk(ICONS.zoomFit, t('designer.zoomFit', 'Fit to the window'), () => { state.zoom = 1; renderPreview(); }, { id: 'tb-fit' })
+  );
+  const undoBtn = $('#tb-undo');
+  const redoBtn = $('#tb-redo');
+  if (undoBtn) undoBtn.disabled = state.history.length === 0;
+  if (redoBtn) redoBtn.disabled = state.future.length === 0;
+}
+
+/** Selection outline + resize handles + smart guides, in label (dot) coordinates. */
 function renderOverlay() {
   const dots = mmToDots(state.doc.width, state.doc.dpi);
   const hDots = mmToDots(state.doc.height, state.doc.dpi);
   const parts = [`<svg class="preview-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dots} ${hDots}" preserveAspectRatio="none" aria-hidden="true">`];
+  const stroke = Math.max(1, dots * 0.0025);
+  for (const guide of state.guides || []) {
+    const p = mmToDots(guide.pos, state.doc.dpi);
+    if (guide.axis === 'x') {
+      parts.push(`<line x1="${p}" y1="0" x2="${p}" y2="${hDots}" stroke="#ec4899" stroke-width="${stroke}" stroke-dasharray="${stroke * 4} ${stroke * 3}"/>`);
+    } else {
+      parts.push(`<line x1="0" y1="${p}" x2="${dots}" y2="${p}" stroke="#ec4899" stroke-width="${stroke}" stroke-dasharray="${stroke * 4} ${stroke * 3}"/>`);
+    }
+  }
   const element = selectedElement();
   if (element) {
     const mm = elementBoxMm(element);
@@ -718,7 +852,6 @@ function renderOverlay() {
     const y = mmToDots(mm.y, state.doc.dpi);
     const w = mmToDots(mm.w, state.doc.dpi);
     const h = mmToDots(mm.h, state.doc.dpi);
-    const stroke = Math.max(1, dots * 0.0025);
     const hs = clamp(dots * 0.022, 4, 16);
     parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#4f46e5" stroke-width="${stroke}" stroke-dasharray="${stroke * 5} ${stroke * 4}"/>`);
     const points = handlePoints({ x, y, w, h });
@@ -798,6 +931,7 @@ function wirePreviewDrag() {
   let drag = null;
 
   svg.addEventListener('pointerdown', (ev) => {
+    state.guides = [];
     const pt = pointMm(ev);
     const element = selectedElement();
     if (element && !element.locked) {
@@ -837,6 +971,7 @@ function wirePreviewDrag() {
     if (drag.mode === 'move') {
       drag.element.x = clamp(snapMm(drag.originX + dx), 0, Math.max(0, state.doc.width - 0.5));
       drag.element.y = clamp(snapMm(drag.originY + dy), 0, Math.max(0, state.doc.height - 0.5));
+      if (state.snap) applySmartGuides(drag.element, elementBoxMm(drag.element));
     } else {
       const box = drag.box;
       const id = drag.handle;
@@ -868,10 +1003,12 @@ function wirePreviewDrag() {
   });
 
   const finish = () => {
+    state.guides = [];
     if (!drag) return;
     drag = null;
     renderProps();
     renderOutput();
+    renderPreview();
   };
   svg.addEventListener('pointerup', finish);
   svg.addEventListener('pointercancel', finish);
@@ -1146,6 +1283,7 @@ function renderAll() {
   renderElementList();
   renderProps();
   renderArrange();
+  renderCanvasToolbar();
   renderDocProps();
   renderVars();
   renderPreview();
