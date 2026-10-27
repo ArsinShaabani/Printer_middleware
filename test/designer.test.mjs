@@ -197,6 +197,46 @@ test('changing the label size preset updates the preview and the size readout', 
   assert.equal(svg.getAttribute('viewBox'), '0 0 799 1199', '100 x 150 mm at 203 dpi');
 });
 
+test('the canvas drags and resizes elements with the values each type really renders', async () => {
+  const { doc, window, click } = await loadDesigner();
+  const scale = 50 / 400; // document mm per rendered px at 100% zoom (50 mm, 400 dots)
+  const px = (mm) => Math.round(mm / scale);
+  const at = (mmX, mmY) => new window.MouseEvent('pointermove', { clientX: px(mmX), clientY: px(mmY), bubbles: true });
+  const down = (mmX, mmY) => new window.MouseEvent('pointerdown', { clientX: px(mmX), clientY: px(mmY), bubbles: true });
+  const up = () => new window.MouseEvent('pointerup', { bubbles: true });
+  const svg = doc.querySelector('#preview svg');
+  const numbers = () => [...doc.querySelectorAll('#props input[type=number]')].map((i) => Number(i.value));
+
+  // Layers are listed top-most first: box, qrcode, barcode, text, text.
+  click(doc.querySelectorAll('#el-list .el-item')[2]);
+  assert.deepEqual(numbers().slice(0, 3), [4, 15, 30], 'the barcode starts at x=4, y=15, w=30');
+
+  // Drag the element 5 mm to the right and 2 mm down (grid snapping is 1 mm).
+  svg.dispatchEvent(down(10, 18));
+  svg.dispatchEvent(at(15, 20));
+  svg.dispatchEvent(up());
+  assert.deepEqual(numbers().slice(0, 2), [9, 17], 'the drag moved the element by the snapped delta');
+
+  // Resize from the south-east handle: +5 mm wide, +2.5 mm tall.
+  svg.dispatchEvent(down(39, 26));
+  svg.dispatchEvent(at(44, 28.5));
+  svg.dispatchEvent(up());
+  const after = numbers();
+  assert.equal(after[2], 35, 'the barcode width follows the resize handle');
+  assert.equal(after[3], 12, 'the barcode bar height follows the resize handle');
+
+  // A QR code is sized by sizeMm, so its handle must change that - not a stale w.
+  click(doc.querySelectorAll('#el-list .el-item')[1]);
+  const qrBefore = numbers();
+  const qrBox = { x: 33, y: 14, size: 13 };
+  svg.dispatchEvent(down(qrBox.x + qrBox.size, qrBox.y + qrBox.size));
+  svg.dispatchEvent(at(qrBox.x + qrBox.size + 4, qrBox.y + qrBox.size + 4));
+  svg.dispatchEvent(up());
+  const qrAfter = numbers();
+  assert.equal(qrAfter[2], 17, 'the QR size grows with the handle (sizeMm, not w)');
+  assert.notDeepEqual(qrAfter, qrBefore, 'the QR properties changed');
+});
+
 test('the printer language selector re-renders the native output', async () => {
   const { doc, window } = await loadDesigner();
   const lang = doc.getElementById('language');

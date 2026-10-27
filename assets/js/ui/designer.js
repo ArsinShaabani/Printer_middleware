@@ -850,8 +850,17 @@ function wirePreviewDrag() {
       if (id.includes('n')) { const nh = Math.max(2, snapMm(box.h - dy)); y = box.y + (box.h - nh); h = nh; }
       drag.element.x = clamp(x, 0, state.doc.width);
       drag.element.y = clamp(y, 0, state.doc.height);
-      drag.element.w = clamp(w, 0.5, state.doc.width - drag.element.x);
-      if (drag.element.type === 'image' || drag.element.type === 'line' || drag.element.type === 'box') {
+      // Map the drag to the properties each element type actually renders:
+      // a QR code is sized by sizeMm, a barcode by w + heightMm, text by w.
+      if (drag.element.type === 'qrcode') {
+        drag.element.sizeMm = clamp(Math.min(w, h), 4, 100);
+      } else if (drag.element.type === 'barcode') {
+        drag.element.w = clamp(w, 2, state.doc.width - drag.element.x);
+        drag.element.heightMm = clamp(h, 3, 80);
+      } else if (drag.element.type === 'text') {
+        drag.element.w = clamp(w, 2, state.doc.width - drag.element.x);
+      } else {
+        drag.element.w = clamp(w, 0.5, state.doc.width - drag.element.x);
         drag.element.h = clamp(h, 0, state.doc.height - drag.element.y);
       }
     }

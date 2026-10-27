@@ -158,7 +158,23 @@ npm run serve        # preview the site at http://localhost:8080
 `firmware/arsin_print_server_esp8266/web_assets.h` (gzipped assets served straight from flash)
 and `manifests/index.json`.
 
-## The device web app
+## Languages
+
+The whole UI is bilingual (English + Persian, RTL aware) and the Persian dictionary is
+enforced by `test/i18n.test.mjs`: the two dictionaries must define the same keys, every
+`data-i18n` key used by a page must exist in both, and every maintenance action, catalog app,
+transport and board family must have a translation. The Vazirmatn/Inter webfonts are loaded
+with `display=swap` and fall back to the system stack, so the device pages still render
+correctly on a network without internet access.
+
+Translated: navigation, the landing page, the installer wizard, the wiring tables and guide
+chrome, the label designer, the maintenance console, the documentation and the FAQ - including
+the catalog metadata (app taglines/summaries/features/requirements, transport labels, board
+families).
+
+Still English by design: the technical wiring *recipe* prose (step-by-step instructions,
+safety warnings, cable notes) authored in `data/apps.json`, plus board MCU/pin strings. Add a
+`wiring.<app>.<transport>.*` block to the dictionary if you need those in another language.
 
 The board serves the **whole** control panel - not just a status page:
 
