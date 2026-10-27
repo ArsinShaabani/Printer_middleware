@@ -511,4 +511,9 @@ bool configSave() {
   return true;
 }
 
+void configFactoryReset(ArsinConfig& cfg) {
+  configDefaults(cfg);
+  configClamp(cfg);
+}
+
 void configWipe() { storeWipe(); }

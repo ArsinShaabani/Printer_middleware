@@ -348,7 +348,11 @@ size_t netScanJson(char* out, size_t cap) {
     json.beginObject();
     json.kvString("ssid", WiFi.SSID(i).c_str());
     json.kvLong("rssi", (long)WiFi.RSSI(i));
+#if defined(ARDUINO_ARCH_ESP8266)
+    json.kvBool("secure", WiFi.encryptionType(i) != AUTH_OPEN);
+#else
     json.kvBool("secure", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+#endif
     json.kvLong("channel", (long)WiFi.channel(i));
     json.endObject();
   }

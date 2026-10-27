@@ -92,8 +92,8 @@ const size_t kSseMaxClients = 3;
 const uint32_t kRawClientIdleMs = 15000;
 
 ArsinWebServer g_server;
-WiFiServer g_rawServer;
-WiFiServer g_telnetServer;
+WiFiServer g_rawServer(0);
+WiFiServer g_telnetServer(0);
 WiFiClient g_rawClients[2];
 uint32_t g_rawLast[2] = {0, 0};
 WiFiClient g_telnetClient;
@@ -169,6 +169,20 @@ bool requireWriteAuth() {
 bool webAuthOk() {
   if (g_config.webPassword[0] == 0) return true;
   return g_server.authenticate("admin", g_config.webPassword);
+}
+
+/**
+ * Content-Length of the current request.
+ *
+ * The ESP32 WebServer exposes clientContentLength(); the ESP8266 one does not,
+ * so read the header instead. This file is shared by both sketches.
+ */
+size_t requestContentLength(ArsinWebServer& server) {
+#if defined(ARDUINO_ARCH_ESP8266)
+  return server.hasHeader("Content-Length") ? (size_t)server.header("Content-Length").toInt() : 0;
+#else
+  return server.hasHeader("Content-Length") ? (size_t)server.clientContentLength() : 0;
+#endif
 }
 
 bool requireWebAuth() {
@@ -723,7 +737,7 @@ void handlePrint() {
   /* --- stream the body from the socket straight to the printer ----------- */
   WiFiClient client = g_server.client(); /* shares the socket with the server */
   const bool hasContentLength = g_server.hasHeader("Content-Length");
-  const size_t contentLength = hasContentLength ? (size_t)g_server.clientContentLength() : 0;
+  const size_t contentLength = hasContentLength ? requestContentLength(g_server) : 0;
   const bool chunked = g_server.hasHeader("Transfer-Encoding") &&
                        g_server.header("Transfer-Encoding").indexOf("chunked") >= 0;
   if (!chunked && hasContentLength && contentLength == 0) {
@@ -801,7 +815,7 @@ class ArsinPrintRawHandler : public RequestHandler {
     return canHandle(method, uri);
   }
   bool canRaw(WebServer& server, const String& uri) override {
-    return uri == "/api/print" && server.clientContentLength() > (int)kBodyMax;
+    return uri == "/api/print" && requestContentLength(server) > (size_t)kBodyMax;
   }
   bool handle(WebServer& server, HTTPMethod method, const String& uri) override {
     (void)server;
@@ -1376,7 +1390,13 @@ void webhookPost(const char* jobId, uint32_t bytes) {
   }
 
   WiFiClient client;
-  if (!client.connect(host, port, 2000)) {
+#if defined(ARDUINO_ARCH_ESP8266)
+  client.setTimeout(2000);
+  const bool webhookConnected = client.connect(host, port);
+#else
+  const bool webhookConnected = client.connect(host, port, 2000);
+#endif
+  if (!webhookConnected) {
     LOGW("webhook: cannot reach %s:%u", host, (unsigned)port);
     return;
   }

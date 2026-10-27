@@ -237,7 +237,6 @@ void arsinBtLoop() {}
 bool arsinBtEnabled() { return false; }
 bool arsinBtConnected() { return false; }
 const char* arsinBtMode() { return "off"; }
-const char* printerBtName() { return g_config.btName; }
 uint32_t arsinBtRxBytes() { return 0; }
 const char* arsinBtNote() {
 #if defined(ARDUINO_ARCH_ESP8266)

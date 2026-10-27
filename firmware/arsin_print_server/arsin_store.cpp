@@ -109,7 +109,12 @@ uint16_t readU16(uint16_t addr) {
 }  // namespace
 
 bool storeBegin() {
+#if defined(ARDUINO_ARCH_ESP8266)
+  EEPROM.begin(g_size);
+  g_ready = true;
+#else
   g_ready = EEPROM.begin(g_size);
+#endif
   if (!g_ready) {
     LOGW("eeprom: begin failed");
     return false;
