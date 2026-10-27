@@ -248,7 +248,7 @@ check(
 const rawHandler = functionBody(esp32Text, code, 'class ArsinPrintRawHandler');
 if (check('ArsinPrintRawHandler', rawHandler !== null, 'handler not found')) {
   trace.push(`arsin_web.cpp:${rawHandler.line}  ArsinPrintRawHandler      keeps WebServer from buffering the body`);
-  check('canRaw() gate', /server\.clientContentLength\(\) > \(int\)kBodyMax/.test(rawHandler.body),
+  check('canRaw() gate', /requestContentLength\(server\) > \(size_t\)kBodyMax/.test(rawHandler.body),
     'canRaw() does not gate on kBodyMax');
   check(
     'canHandle() overloads',
