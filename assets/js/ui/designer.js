@@ -27,6 +27,7 @@ const state = {
   grid: true,
   snap: true,
   gridMm: 1,
+  margins: false,
   raster: null,
   output: null,
   device: null,
@@ -665,6 +666,7 @@ function renderDocProps() {
     field('Rotation', selectInput(String(state.doc.rotation || 0), ROTATIONS, (v) => { pushHistory(); state.doc.rotation = Number(v); renderOutput(); })),
     field('Printer profile', selectInput(state.doc.profile, DEVICE_PROFILES.map((p) => ({ value: p.id, label: p.name })), (v) => { pushHistory(); state.doc.profile = v; renderOutput(); }))
   ]));
+  host.append(field(t('designer.margin', 'Safe margin (mm)'), numberInput(state.doc.marginMm == null ? 2 : state.doc.marginMm, (v) => { state.doc.marginMm = clamp(v, 0, 20); renderPreview(); }, { step: '0.5', min: 0, max: 20 }), t('designer.margin.hint', 'Dashed green guide on the canvas only')));
   host.append(checkInput(state.doc.cut !== false, (v) => { state.doc.cut = v; renderOutput(); }, 'Cut after printing (receipt printers)'));
   host.append(el('div', { class: 'hint', text: t('designer.docHint', 'Sizes are in millimetres; the dots column shows what the printer receives.') }));
 }
@@ -844,6 +846,10 @@ function renderOverlay() {
     } else {
       parts.push(`<line x1="0" y1="${p}" x2="${dots}" y2="${p}" stroke="#ec4899" stroke-width="${stroke}" stroke-dasharray="${stroke * 4} ${stroke * 3}"/>`);
     }
+  }
+  if (state.margins) {
+    const m = mmToDots(Number(state.doc.marginMm) || 2, state.doc.dpi);
+    parts.push(`<rect x="${m}" y="${m}" width="${Math.max(0, dots - 2 * m)}" height="${Math.max(0, hDots - 2 * m)}" fill="none" stroke="#22c55e" stroke-width="${stroke}" stroke-dasharray="${stroke * 3} ${stroke * 3}"/>`);
   }
   const element = selectedElement();
   if (element) {
@@ -1329,6 +1335,11 @@ function wire() {
   if (snapToggle) {
     snapToggle.checked = state.snap;
     snapToggle.addEventListener('change', (e) => { state.snap = e.target.checked; });
+  }
+  const marginsToggle = $('#margins-toggle');
+  if (marginsToggle) {
+    marginsToggle.checked = state.margins;
+    marginsToggle.addEventListener('change', (e) => { state.margins = e.target.checked; renderPreview(); });
   }
   const gridSize = $('#grid-size');
   if (gridSize) {

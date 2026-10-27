@@ -88,18 +88,22 @@ function compiler() {
   return null;
 }
 
-function sources(dir) {
+function walkFiles(dir, pattern) {
   const out = [];
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       if (entry === 'build') continue;
-      out.push(...sources(full));
-    } else if (/\.(cpp|cc|cxx)$/.test(entry)) {
+      out.push(...walkFiles(full, pattern));
+    } else if (pattern.test(entry)) {
       out.push(full);
     }
   }
   return out;
+}
+
+function sources(dir) {
+  return walkFiles(dir, /\.(cpp|cc|cxx)$/);
 }
 
 /** True when every angle-bracket include of a file can be resolved on the host. */
@@ -151,9 +155,113 @@ for (const sketch of sketches) {
   }
 }
 
+/* ------------------------------------------------------- arity checking */
+
+/**
+ * Parse the parameter list of every function the sketch declares itself, then
+ * count the arguments at every call site. A missing argument (for example a
+ * forgotten `sizeof(note)`) is a hard compile error that no brace checker can
+ * see, and it only shows up in CI.
+ */
+function declaredArities(sketch) {
+  const arities = new Map();
+  for (const file of walkFiles(sketch, /\.h$/)) {
+    const text = readFileSync(file, 'utf8');
+    for (const m of text.matchAll(/^[A-Za-z_][\w:<>\s*&]*\b(arsin\w+)\s*\(([^;{)]*)\)\s*;/gm)) {
+      const params = m[2].trim();
+      if (params === 'void' || params === '') {
+        arities.set(m[1], 0);
+        continue;
+      }
+      arities.set(m[1], splitArgs(params).length);
+    }
+  }
+  return arities;
+}
+
+/** Split an argument list on top-level commas (ignores nesting and strings). */
+function splitArgs(text) {
+  const out = [];
+  let depth = 0;
+  let current = '';
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      current += c;
+      if (c === '\\') {
+        current += text[++i] || '';
+      } else if (c === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      quote = c;
+      current += c;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth++;
+    if (c === ')' || c === ']' || c === '}') depth--;
+    if (c === ',' && depth === 0) {
+      out.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += c;
+  }
+  if (current.trim()) out.push(current.trim());
+  return out;
+}
+
+function checkArities(sketch) {
+  const arities = declaredArities(sketch);
+  const problems = [];
+  for (const file of sources(sketch)) {
+    if (file.endsWith('.h')) continue;
+    const text = readFileSync(file, 'utf8');
+    for (const [name, expected] of arities) {
+      const re = new RegExp(`(?<![\\w.>])${name}\\s*\\(`, 'g');
+      for (const m of text.matchAll(re)) {
+        // Skip the definition itself (`... name(...) {`).
+        const from = m.index + m[0].length;
+        let depth = 1;
+        let i = from;
+        let quote = null;
+        for (; i < text.length && depth > 0; i++) {
+          const c = text[i];
+          if (quote) {
+            if (c === '\\') i++;
+            else if (c === quote) quote = null;
+            continue;
+          }
+          if (c === '"' || c === "'") quote = c;
+          else if (c === '(') depth++;
+          else if (c === ')') depth--;
+        }
+        if (depth !== 0) continue; // unbalanced - do not guess
+        const args = text.slice(from, i - 1);
+        const after = text.slice(i, i + 40);
+        if (/^\s*\{/.test(after)) continue; // this is the definition
+        const count = args.trim() === '' ? 0 : splitArgs(args).length;
+        if (count !== expected) {
+          const line = text.slice(0, m.index).split('\n').length;
+          problems.push(`${relative(firmwareRoot, file)}:${line}: ${name}() takes ${expected} argument(s) but is called with ${count}`);
+        }
+      }
+    }
+  }
+  return problems;
+}
+
+for (const sketch of sketches) {
+  const arityProblems = checkArities(sketch);
+  for (const problem of arityProblems) problems.push(problem);
+}
+
 for (const problem of problems) console.log(`error: ${problem}`);
 if (problems.length) {
-  console.log(`FAILED: ${problems.length} file(s) do not compile, ${checked} ok, ${skipped} skipped`);
+  console.log(`FAILED: ${problems.length} problem(s)`);
   process.exit(1);
 }
 console.log(`OK: ${checked} core-independent firmware file(s) compile (${skipped} need the Arduino core, skipped)`);

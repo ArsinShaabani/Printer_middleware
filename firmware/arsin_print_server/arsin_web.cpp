@@ -615,7 +615,7 @@ void printJobFinish() {
     uint8_t cut[16];
     size_t cutLen = 0;
     char note[64];
-    if (arsinBuildCommand(g_job.lang, "cut", nullptr, 0, cut, sizeof(cut), &cutLen, note) && cutLen) {
+    if (arsinBuildCommand(g_job.lang, "cut", nullptr, 0, cut, sizeof(cut), &cutLen, note, sizeof(note)) && cutLen) {
       bytes += (uint32_t)printerWriteAll(cut, cutLen, kCutWriteMs);
     }
   }

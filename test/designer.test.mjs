@@ -160,6 +160,14 @@ test('rulers, grid, snap and grid size are wired to the canvas', async () => {
   size.value = '5';
   size.dispatchEvent(new window.Event('change'));
   assert.equal(size.value, '5', 'the grid size selector keeps the value');
+  const margins = doc.getElementById('margins-toggle');
+  assert.ok(margins, 'the safe-margin toggle exists');
+  margins.checked = true;
+  margins.dispatchEvent(new window.Event('change'));
+  assert.ok(doc.getElementById('preview').innerHTML.includes('#22c55e'), 'the safe-area guide is drawn');
+  margins.checked = false;
+  margins.dispatchEvent(new window.Event('change'));
+  assert.ok(!doc.getElementById('preview').innerHTML.includes('#22c55e'), 'the guide can be turned off');
 });
 
 test('arrow keys nudge the selected element by the grid step', async () => {
