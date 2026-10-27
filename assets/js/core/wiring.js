@@ -154,19 +154,19 @@ export function renderWiringSvg(wiring, board, app, opts = {}) {
       const color = signalColor(link.signal);
       const label = `${link.signal}: ${link.board} -> ${link.printer}`;
       const dashed = link.required === false;
-      const boardLines = wrapText(link.board, 26, 2);
-      const printerLines = wrapText(link.printer, 40, 2);
+      const boardLines = wrapText(link.board, 24, 2);
+      const printerLines = wrapText(link.printer, 34, 2);
       const group = ['<g>', `<title>${esc(label)}</title>`];
 
       // board-side pin name, right aligned against the box edge
       boardLines.forEach((line, li) => {
         const ly = boardLines.length === 1 ? y + 4 : y - 2 + li * 13;
-        group.push(`<text x="${wireX1 - 14}" y="${ly}" text-anchor="end" font-size="12" fill="#0f172a">${esc(line)}</text>`);
+        group.push(`<text x="${wireX1 - 14}" y="${ly}" text-anchor="end" font-size="11.5" fill="#0f172a">${esc(line)}</text>`);
       });
       // printer-side pin name, left aligned after the box edge
       printerLines.forEach((line, li) => {
         const ly = printerLines.length === 1 ? y + 4 : y - 2 + li * 13;
-        group.push(`<text x="${wireX2 + 14}" y="${ly}" font-size="12" fill="#0f172a">${esc(line)}</text>`);
+        group.push(`<text x="${wireX2 + 14}" y="${ly}" font-size="11.5" fill="#0f172a">${esc(line)}</text>`);
       });
 
       // the wire itself: exactly one horizontal cubic bezier per resolved link

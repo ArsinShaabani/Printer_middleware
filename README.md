@@ -76,9 +76,23 @@ The installer sets up the Python service, systemd unit, mDNS advertisement and o
 
 ### C. Build the firmware yourself
 
+The ESP32 and ESP8266 cores are **not** part of the default Arduino index, so the
+board-manager URLs must be registered before any core can be installed - without
+this step `arduino-cli core install esp32:esp32` fails and no firmware is ever
+produced:
+
 ```bash
+arduino-cli config init --overwrite
+arduino-cli config add board_manager.additional_urls \
+  https://espressif.github.io/arduino-esp32/package_esp32_index.json \
+  https://arduino.esp8266.com/stable/package_esp8266com_index.json
+arduino-cli core update-index
 arduino-cli core install esp32:esp32
 arduino-cli core install esp8266:esp8266
+
+# the device web app (designer + maintenance + docs) is embedded in the sketch,
+# so generate the asset headers first
+node tools/build-web-assets.mjs && node tools/build-web-assets.mjs --min
 
 # ESP32 Wi-Fi bridge (DevKit V1)
 arduino-cli compile -b esp32:esp32:esp32 -e firmware/arsin_print_server \
@@ -94,6 +108,10 @@ arduino-cli compile -b esp8266:esp8266:nodemcuv2 -e firmware/arsin_print_server_
 
 Variants: `ARSIN_VARIANT_WIFI`, `ARSIN_VARIANT_BT`, `ARSIN_VARIANT_BLE`, `ARSIN_VARIANT_USBHOST`,
 `ARSIN_VARIANT_SERIAL`, `ARSIN_VARIANT_HYBRID` (see firmware/README.md for the full matrix).
+
+`npm run check:firmware` runs the static checks that catch the mistakes a compile would
+catch (brace/include balance, duplicate definitions, ESP32/ESP8266 file sync, the embedded
+asset tables compiled with the local C++ compiler, and the /api/print streaming path).
 
 ---
 
@@ -121,7 +139,8 @@ firmware/             ESP32 / ESP8266 sketches + Raspberry Pi service
 manifests/            generated esp-web-tools manifests (one per app+board)
 firmware-bin/         compiled binaries published by CI (git-ignored)
 tools/                build, validation and preview tooling
-test/                 node:test suite (barcodes, QR, catalogs, wiring, commands, raster, labels, UI)
+firmware/tools/       firmware static checks (sources, embedded assets, streaming)
+test/                 node:test suite (barcodes, QR, catalogs, wiring, commands, raster, labels, UI, designer, i18n)
 ```
 
 ## Development
@@ -130,6 +149,7 @@ test/                 node:test suite (barcodes, QR, catalogs, wiring, commands,
 npm install          # dev dependencies: jsdom, qrcode, bwip-js (reference encoders for the tests)
 npm test             # unit tests: barcode/QR verified against bwip-js and qrcode
 npm run validate     # catalog schema validation
+npm run check:firmware  # firmware source, embedded asset and streaming checks
 npm run build        # embed the web app into the firmware + regenerate manifests
 npm run serve        # preview the site at http://localhost:8080
 ```
@@ -137,6 +157,27 @@ npm run serve        # preview the site at http://localhost:8080
 `npm run build` writes `firmware/arsin_print_server/web_assets.h` and
 `firmware/arsin_print_server_esp8266/web_assets.h` (gzipped assets served straight from flash)
 and `manifests/index.json`.
+
+## The device web app
+
+The board serves the **whole** control panel - not just a status page:
+
+| route | what it is |
+| --- | --- |
+| `/` | device home: live status, links to every tool |
+| `/designer.html` | label & receipt designer (runs in your browser, talks to the board over its REST API) |
+| `/troubleshoot.html` | maintenance & service console: self test, calibration, head cleaning, counters, raw hex console, configuration editor, OTA, backup/restore, diagnostics |
+| `/docs.html` | wiring library, printer language reference, REST API and the FAQ |
+
+Both `designer.html` and `troubleshoot.html` detect that they are being served by a device
+(they probe `/api/health`) and then connect to `window.location.origin` automatically, so
+there is no address to type in. The same pages work on the hosted site, where you enter the
+device address (mDNS name or IP) instead.
+
+The designer itself is a full editor: millimetre canvas with rulers, drag/resize handles and
+snapping, ready-made presets, undo/redo, align/z-order tools, layers with lock, variables,
+templates, and a complete property panel for every element (text, barcode, QR, image, line,
+box) - plus the native command, hex, JSON and raster output panels.
 
 ### Adding a board
 
@@ -212,9 +253,27 @@ git add .github/workflows && git commit -m 'ci: enable the workflows' && git pus
 
 Then set **Settings -> Pages -> Source: GitHub Actions** once. After that:
 
-- `test.yml` - unit tests and catalog validation on every push / pull request.
+- `test.yml` - unit tests, catalog validation and the firmware static checks on every push / pull request.
 - `deploy-pages.yml` - builds the web assets + manifests, compiles every board/variant pair, publishes the installer site (with browser flashing) to GitHub Pages.
 - `build-firmware.yml` - compiles the same matrix and attaches the binaries to a GitHub release on tag pushes.
+
+> **Both firmware workflows must register the ESP board-manager URLs before installing a
+> core.** Neither `esp32:esp32` nor `esp8266:esp8266` exists in the default Arduino index, so
+> a bare `arduino-cli core install` fails, every compile step is skipped and the release ends
+> up with **no firmware binaries** - the site still publishes, but the installer can only say
+> "not built yet". The workflows do this in their *Install the board cores* step:
+>
+> ```yaml
+> arduino-cli config init --overwrite || true
+> arduino-cli config add board_manager.additional_urls \
+>   https://espressif.github.io/arduino-esp32/package_esp32_index.json \
+>   https://arduino.esp8266.com/stable/package_esp8266com_index.json
+> arduino-cli core update-index
+> ```
+>
+> The compile steps stay `continue-on-error` so a broken sketch never blocks the site, but a
+> successful run must show the binaries in the job summary ("Firmware binaries collected").
+> If it says "No firmware binaries were produced", read that step's log first.
 
 ### Large print jobs
 
