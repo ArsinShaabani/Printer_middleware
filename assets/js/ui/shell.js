@@ -206,7 +206,6 @@ export function applyTheme(theme) {
 
 export function toggleTheme() {
   applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 }
 
 /* --------------------------------------------------------------- catalogs */

@@ -32,6 +32,7 @@ function renderWiringLibrary() {
 
 function renderWiringDoc() {
   const host = $('#wiring-doc');
+  if (!host) return;
   host.innerHTML = '';
   const app = state.catalog.apps.find((a) => a.id === $('#wiring-app').value);
   const board = state.catalog.boards.find((b) => b.id === $('#wiring-board').value);
@@ -323,12 +324,14 @@ function renderFaq() {
     $('#wiring-doc').innerHTML = '<div class="callout danger">Could not load the catalog: ' + esc(e.message) + '</div>';
   }
   onChange(() => {
+    // The listener only makes sense while the docs page is mounted.
+    if (!$('#languages-doc')) return;
     renderLanguages();
     renderApi();
     renderBoardsDoc();
     renderBuild();
     renderFaq();
-    renderWiringDoc();
+    if (state.catalog) renderWiringDoc();
   });
   document.addEventListener('click', (e) => {
     const link = e.target.closest('[data-goto]');

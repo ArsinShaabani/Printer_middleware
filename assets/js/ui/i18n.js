@@ -312,8 +312,18 @@ export function applyTranslations(root) {
 }
 
 export function onChange(fn) {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+  // Remember which document registered the listener. In a browser the document
+  // never changes, but the UI smoke tests mount several pages into one process;
+  // a listener that belongs to a page that is no longer mounted must never run
+  // (it would write into a document that has no such node).
+  const owner = typeof document !== 'undefined' ? document : null;
+  const wrapped = (lang) => {
+    if (owner && owner !== document) return;
+    fn(lang);
+  };
+  wrapped.__arsinOwner = owner;
+  listeners.add(wrapped);
+  return () => listeners.delete(wrapped);
 }
 
 export function initI18n() {
