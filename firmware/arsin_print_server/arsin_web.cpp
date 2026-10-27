@@ -23,11 +23,15 @@
 #if defined(ARDUINO_ARCH_ESP8266)
   #include <ESP8266WebServer.h>
   #include <Updater.h>
+  #include <WiFiClient.h>
   #include <WiFiServer.h>
   using ArsinWebServer = ESP8266WebServer;
 #else
   #include <Update.h>
   #include <WebServer.h>
+  /* WiFiClient is used directly (raw 9100, telnet debug, SSE); the ESP32 core's
+   * WiFiServer.h does not pull it in. */
+  #include <WiFiClient.h>
   #include <WiFiServer.h>
   using ArsinWebServer = WebServer;
 #endif
