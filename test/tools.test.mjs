@@ -175,6 +175,27 @@ test('the CI workflows stay valid and keep the ESP board-manager URLs', async ()
   assert.match(tests, /npm run validate/, 'test.yml validates the catalogs');
 });
 
+test('the shared fallback asset header is tracked, not git-ignored', () => {
+  const target = 'firmware/arsin_print_server/web_assets_builtin.h';
+  let inRepo = false;
+  try {
+    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ROOT, stdio: 'pipe' });
+    inRepo = true;
+  } catch (e) {
+    inRepo = false;
+  }
+  if (!inRepo) return; // no git checkout - nothing to assert
+  let ignored = true;
+  try {
+    execFileSync('git', ['check-ignore', '-q', target], { cwd: ROOT, stdio: 'pipe' });
+  } catch (e) {
+    ignored = false; // exit code 1 means "not ignored"
+  }
+  assert.equal(ignored, false, `${target} must not be git-ignored - a fresh clone would fail to compile the ESP32 sketch`);
+  const tracked = execFileSync('git', ['ls-files', target], { cwd: ROOT, encoding: 'utf8' }).trim();
+  assert.equal(tracked, target, `${target} must be committed`);
+});
+
 /* ------------------------------------------------------------ serve.mjs ---- */
 
 test('serve.mjs maps the documented MIME types', () => {
