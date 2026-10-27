@@ -54,6 +54,12 @@ function transportName(id) {
   return tr ? tr.name : id;
 }
 
+/** Translated transport label for the currently selected application. */
+function transportLabel(app, id) {
+  const tr = app && app.transports ? app.transports.find((x) => x.id === id) : null;
+  return t('transport.' + (app ? app.id : '') + '.' + id, tr ? tr.name : id);
+}
+
 function selectedApp() {
   return state.app;
 }
@@ -69,9 +75,9 @@ function renderApps() {
       onclick: () => chooseApp(app.id)
     }, [
       el('h3', { text: app.name }),
-      el('p', { class: 'small', text: app.tagline }),
-      el('div', { class: 'pill-list mb2' }, app.transports.map((tr) => el('span', { class: 'badge', text: tr.name }))),
-      el('p', { class: 'small muted', text: app.summary.slice(0, 150) + (app.summary.length > 150 ? '...' : '') })
+      el('p', { class: 'small', text: t('app.' + app.id + '.tagline', app.tagline) }),
+      el('div', { class: 'pill-list mb2' }, app.transports.map((tr) => el('span', { class: 'badge', text: transportLabel(app, tr.id) }))),
+      el('p', { class: 'small muted', text: t('app.' + app.id + '.summary', app.summary).slice(0, 150) + (t('app.' + app.id + '.summary', app.summary).length > 150 ? '...' : '') })
     ]);
     host.append(card);
   }
@@ -107,8 +113,8 @@ function renderTransports() {
         class: 'card selectable' + (state.transport === tr.id ? ' selected' : ''),
         onclick: () => chooseTransport(tr.id)
       }, [
-        el('h3', { text: tr.name }),
-        el('p', { class: 'small', text: tr.description }),
+        el('h3', { text: transportLabel(state.app, tr.id) }),
+        el('p', { class: 'small', text: t('transport.' + state.app.id + '.' + tr.id + '.desc', tr.description) }),
         el('div', { class: 'pill-list' }, langs.map((l) => el('span', { class: 'badge info', text: l })))
       ])
     );
@@ -239,7 +245,8 @@ function renderWiring() {
   const req = $('#wiring-requirements');
   req.innerHTML = '';
   const reqList = el('ul');
-  for (const r of [...state.app.requirements, ...w.prerequisites]) reqList.append(el('li', { text: r }));
+  state.app.requirements.forEach((r, i) => reqList.append(el('li', { text: t('app.' + state.app.id + '.r' + i, r) })));
+  for (const r of w.prerequisites) reqList.append(el('li', { text: r }));
   req.append(el('div', { class: 'callout ok' }, [el('strong', { text: t('wizard.requirements') }), reqList]));
   req.append(el('h4', { text: t('common.board') }));
   req.append(boardFacts(state.board));

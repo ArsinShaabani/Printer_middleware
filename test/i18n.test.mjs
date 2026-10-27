@@ -101,6 +101,31 @@ test('every maintenance action and group has a translation in both languages', a
   assert.deepEqual(missing, [], 'untranslated maintenance strings');
 });
 
+test('every catalog app, transport and family has a translation in both languages', async () => {
+  const { en, fa } = dictionary();
+  const { mergeCatalogs } = await import('../assets/js/core/catalog.js');
+  const boards = JSON.parse(readFileSync(join(ROOT, 'data/boards.json'), 'utf8'));
+  const apps = JSON.parse(readFileSync(join(ROOT, 'data/apps.json'), 'utf8'));
+  const catalog = mergeCatalogs(boards, apps);
+  const missing = [];
+  const need = (key) => {
+    if (!en.has(key)) missing.push(`${key} (en)`);
+    if (!fa.has(key)) missing.push(`${key} (fa)`);
+  };
+  for (const app of catalog.apps) {
+    need(`app.${app.id}.tagline`);
+    need(`app.${app.id}.summary`);
+    app.features.forEach((_, i) => need(`app.${app.id}.f${i}`));
+    app.requirements.forEach((_, i) => need(`app.${app.id}.r${i}`));
+    for (const transport of app.transports) {
+      need(`transport.${app.id}.${transport.id}`);
+      need(`transport.${app.id}.${transport.id}.desc`);
+    }
+  }
+  for (const family of new Set(catalog.boards.map((b) => b.family))) need(`family.${family}`);
+  assert.deepEqual(missing, [], 'untranslated catalog metadata');
+});
+
 test('the pages declare a Persian-capable font stack and RTL-safe layout', () => {
   const css = readFileSync(join(ROOT, 'assets/css/app.css'), 'utf8');
   assert.match(css, /--sans:[^;]*Vazirmatn/, 'the sans stack prefers Vazirmatn');
