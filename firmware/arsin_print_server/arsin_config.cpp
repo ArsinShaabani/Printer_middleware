@@ -12,6 +12,7 @@
 #include "arsin_json.h"
 #include "arsin_log.h"
 #include "arsin_store.h"
+#include "arsin_version.h"
 
 ArsinConfig g_config;
 
@@ -32,9 +33,16 @@ void trimStr(char* s) {
   }
 }
 
-void clampU32(uint32_t& value, uint32_t lo, uint32_t hi) {
-  if (value < lo) value = lo;
-  if (value > hi) value = hi;
+/**
+ * Clamp an integral setting to a range.
+ *
+ * The config struct mixes uint16_t and uint32_t members, so the parameter has
+ * to be a template - binding a uint16_t to a uint32_t& would not compile.
+ */
+template <typename T>
+void clampU32(T& value, uint32_t lo, uint32_t hi) {
+  if (value < (T)lo) value = (T)lo;
+  if (value > (T)hi) value = (T)hi;
 }
 
 bool oneOf(const char* value, const char* const* options, size_t count) {

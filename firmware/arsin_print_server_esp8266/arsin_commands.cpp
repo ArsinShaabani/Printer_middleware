@@ -85,6 +85,14 @@ class CmdBuilder {
     }
   }
 
+  /**
+   * Byte from an integer literal.
+   *
+   * Without this overload `b.add(0x00)` is ambiguous: 0 is a null pointer
+   * constant, so it converts both to uint8_t and to const char*.
+   */
+  void add(int b) { add((uint8_t)b); }
+
   void add(const uint8_t* data, size_t n) {
     for (size_t i = 0; i < n; i++) add(data[i]);
   }

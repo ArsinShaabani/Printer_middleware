@@ -86,6 +86,11 @@ test('the firmware sources pass the structural checks', async () => {
   assert.match(stdout, /OK: no structural problems/, stdout);
 });
 
+test('the core-independent firmware sources compile (catches real C++ errors)', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-syntax.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: \d+ core-independent firmware file\(s\) compile/, stdout);
+});
+
 test('the embedded web-asset tables are consistent for both sketches', async () => {
   const { stdout } = await run(process.execPath, ['firmware/tools/check-assets.mjs'], { cwd: ROOT });
   assert.match(stdout, /OK: the embedded asset tables are consistent/, stdout);
