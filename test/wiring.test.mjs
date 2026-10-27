@@ -185,6 +185,54 @@ test('renderWiringSvg draws the wireless placeholder when nothing must be wired'
   assert.equal(wires.length, 0);
 });
 
+test('the diagram layout stays readable: labels stay inside the boxes and rows never overlap', () => {
+  const catalog2 = catalog;
+  let checked = 0;
+  for (const b of catalog2.boards) {
+    for (const a of catalog2.apps) {
+      for (const transport of a.transports) {
+        const wiring = resolveWiring(b, a, transport.id);
+        if (!wiring || !wiring.links.filter((l) => !l.unresolved).length) continue;
+        const svg = renderWiringSvg(wiring, b, a);
+        const dom = new JSDOM(svg, { contentType: 'image/svg+xml' });
+        const root = dom.window.document.documentElement;
+        const nodes = [...root.querySelectorAll('text')].map((n) => ({
+          text: n.textContent,
+          x: Number(n.getAttribute('x')),
+          y: Number(n.getAttribute('y')),
+          size: Number(n.getAttribute('font-size') || 12),
+          anchor: n.getAttribute('text-anchor') || 'start'
+        }));
+        // Every wire row owns exactly one signal chip; chips must not overlap.
+        const chips = nodes.filter((n) => n.anchor === 'middle' && n.text.includes('\u00b7'));
+        const rows = chips.map((c) => c.y).sort((p, q) => p - q);
+        for (let i = 1; i < rows.length; i++) {
+          assert.ok(rows[i] - rows[i - 1] >= 24, `${b.id}/${a.id}/${transport.id}: wire rows overlap`);
+        }
+        // Pin labels are anchored against the box edges and must fit inside them.
+        const boardLabels = nodes.filter((n) => n.anchor === 'end' && Math.abs(n.x - 278) < 1);
+        for (const label of boardLabels) {
+          const width = label.text.length * label.size * 0.58;
+          assert.ok(label.x - width >= 24, `${b.id}: "${label.text}" overflows the board box`);
+        }
+        const printerLabels = nodes.filter((n) => n.anchor === 'start' && Math.abs(n.x - 682) < 1);
+        for (const label of printerLabels) {
+          const width = label.text.length * label.size * 0.58;
+          assert.ok(label.x + width <= 936, `${b.id}: "${label.text}" overflows the printer box`);
+        }
+        // Each wire keeps the full sentence as an accessible <title>.
+        const titles = [...root.querySelectorAll('title')].map((n) => n.textContent);
+        assert.equal(titles.length, wiring.links.filter((l) => !l.unresolved).length, 'one title per wire');
+        for (const link of wiring.links.filter((l) => !l.unresolved)) {
+          assert.ok(titles.includes(`${link.signal}: ${link.board} -> ${link.printer}`), 'the full label is preserved');
+        }
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(checked > 20, `the layout was checked for ${checked} recipes`);
+});
+
 test('renderWiringSvg tolerates a missing wiring recipe', () => {
   const b = board('esp32-devkit-v1');
   const a = app('print-server-wifi');

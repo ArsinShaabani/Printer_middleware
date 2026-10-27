@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, copyFile, rm, readFile, writeFile } from 'node:fs/promises';
+import { readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -76,6 +77,102 @@ test('the validator fails (exit 1) when a catalog is broken', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+/* ------------------------------------------------- firmware static checks ---- */
+
+test('the firmware sources pass the structural checks', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-sources.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: no structural problems/, stdout);
+});
+
+test('the embedded web-asset tables are consistent for both sketches', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-assets.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: the embedded asset tables are consistent/, stdout);
+});
+
+test('the firmware streams large /api/print bodies instead of buffering them', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-print-streaming.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: \/api\/print streams/, stdout);
+});
+
+test('the shipped web-asset bundle embeds the designer, the maintenance console and the docs', async () => {
+  const { buildAssets } = await import('../tools/build-web-assets.mjs');
+  const assets = await buildAssets();
+  const paths = assets.map((a) => a.path);
+  for (const needed of [
+    '/index.html',
+    '/install.html',
+    '/designer.html',
+    '/troubleshoot.html',
+    '/docs.html',
+    '/assets/js/ui/designer.js',
+    '/assets/js/ui/troubleshoot.js',
+    '/assets/js/ui/docs.js',
+    '/assets/css/app.css',
+    '/data/boards.json',
+    '/data/apps.json'
+  ]) {
+    assert.ok(paths.includes(needed), `the device bundle must embed ${needed}`);
+  }
+  const mini = await buildAssets({ min: true });
+  const miniPaths = mini.map((a) => a.path);
+  for (const needed of ['/designer.html', '/assets/js/ui/designer.js', '/troubleshoot.html', '/assets/js/ui/troubleshoot.js']) {
+    assert.ok(miniPaths.includes(needed), `the ESP8266 bundle must embed ${needed}`);
+  }
+});
+
+test('every asset a device page references is embedded, so nothing 404s on the board', async () => {
+  const { buildAssets } = await import('../tools/build-web-assets.mjs');
+  const assets = await buildAssets();
+  const paths = new Set(assets.map((a) => a.path));
+  const missing = [];
+  for (const asset of assets) {
+    if (!asset.path.endsWith('.html')) continue;
+    const html = readFileSync(join(ROOT, asset.path.replace(/^\//, '')), 'utf8');
+    for (const m of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
+      const url = m[1];
+      if (/^(https?:|data:|mailto:|#)/i.test(url)) continue;
+      const clean = url.split(/[?#]/)[0].replace(/^\.\//, '');
+      if (!clean || clean.endsWith('/')) continue;
+      const target = '/' + clean;
+      if (!paths.has(target)) missing.push(`${asset.path} -> ${url}`);
+    }
+  }
+  assert.deepEqual(missing, [], 'pages reference assets that are not embedded in the firmware');
+});
+
+test('the CI workflows stay valid and keep the ESP board-manager URLs', async () => {
+  const dir = join(ROOT, 'ci/github-workflows');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.yml'));
+  assert.ok(files.length >= 3, 'the canonical workflow set is present');
+  for (const file of files) {
+    const text = readFileSync(join(dir, file), 'utf8');
+    assert.ok(!/\t/.test(text), `${file}: YAML must not contain tab characters`);
+    assert.match(text, /^name:\s*\S/m, `${file}: needs a workflow name`);
+    assert.match(text, /^on:\s*$/m, `${file}: needs a trigger block`);
+    assert.match(text, /^jobs:\s*$/m, `${file}: needs a jobs block`);
+  }
+
+  // The firmware workflows must register the ESP board-manager URLs before any
+  // core is installed - without it every compile is skipped and no firmware
+  // binary is ever produced.
+  for (const file of ['deploy-pages.yml', 'build-firmware.yml']) {
+    const text = readFileSync(join(dir, file), 'utf8');
+    assert.match(text, /board_manager\.additional_urls/, `${file}: must register the board-manager URLs`);
+    assert.match(text, /espressif\.github\.io\/arduino-esp32\/package_esp32_index\.json/, `${file}: ESP32 index URL`);
+    assert.match(text, /arduino\.esp8266\.com\/stable\/package_esp8266com_index\.json/, `${file}: ESP8266 index URL`);
+    const addAt = text.indexOf('arduino-cli config add board_manager.additional_urls');
+    const indexAt = text.indexOf('arduino-cli core update-index');
+    const installAt = text.indexOf('arduino-cli core install');
+    assert.ok(addAt > 0 && indexAt > addAt && installAt > indexAt, `${file}: order must be add URLs -> update-index -> core install`);
+    assert.match(text, /continue-on-error: true/, `${file}: a failed compile must not block the site`);
+    assert.match(text, /node tools\/build-web-assets\.mjs/, `${file}: the embedded web assets must be built before compiling`);
+  }
+
+  const tests = readFileSync(join(dir, 'test.yml'), 'utf8');
+  assert.match(tests, /npm test/, 'test.yml runs the unit tests');
+  assert.match(tests, /npm run validate/, 'test.yml validates the catalogs');
 });
 
 /* ------------------------------------------------------------ serve.mjs ---- */

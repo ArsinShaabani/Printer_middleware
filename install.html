@@ -7,6 +7,9 @@
 <title>Install - Arsin Print Server</title>
 <meta name="description" content="Guided installer: choose an application and board, read the wiring diagram, then flash the firmware from your browser.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/css/app.css">
 <script type="module" src="https://unpkg.com/esp-web-tools@10.0.0/dist/web/install-button.js?module"></script>
 </head>
@@ -38,7 +41,7 @@
     <div class="section-head">
       <div><span class="step" data-i18n="step.board"></span><h2 class="mt0" data-i18n="step.board"></h2></div>
       <div class="row tight">
-        <input id="board-search" type="search" placeholder="Search boards..." style="max-width:200px">
+        <input id="board-search" type="search" data-i18n-attr="placeholder=install.board.search" style="max-width:200px">
         <label class="switch small"><input id="only-compatible" type="checkbox" checked> <span data-i18n="install.compat.filter"></span></label>
         <button id="add-board" class="btn small" data-i18n="custom.board.add"></button>
       </div>

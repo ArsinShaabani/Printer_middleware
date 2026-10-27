@@ -54,6 +54,12 @@ function transportName(id) {
   return tr ? tr.name : id;
 }
 
+/** Translated transport label for the currently selected application. */
+function transportLabel(app, id) {
+  const tr = app && app.transports ? app.transports.find((x) => x.id === id) : null;
+  return t('transport.' + (app ? app.id : '') + '.' + id, tr ? tr.name : id);
+}
+
 function selectedApp() {
   return state.app;
 }
@@ -69,9 +75,9 @@ function renderApps() {
       onclick: () => chooseApp(app.id)
     }, [
       el('h3', { text: app.name }),
-      el('p', { class: 'small', text: app.tagline }),
-      el('div', { class: 'pill-list mb2' }, app.transports.map((tr) => el('span', { class: 'badge', text: tr.name }))),
-      el('p', { class: 'small muted', text: app.summary.slice(0, 150) + (app.summary.length > 150 ? '...' : '') })
+      el('p', { class: 'small', text: t('app.' + app.id + '.tagline', app.tagline) }),
+      el('div', { class: 'pill-list mb2' }, app.transports.map((tr) => el('span', { class: 'badge', text: transportLabel(app, tr.id) }))),
+      el('p', { class: 'small muted', text: t('app.' + app.id + '.summary', app.summary).slice(0, 150) + (t('app.' + app.id + '.summary', app.summary).length > 150 ? '...' : '') })
     ]);
     host.append(card);
   }
@@ -107,8 +113,8 @@ function renderTransports() {
         class: 'card selectable' + (state.transport === tr.id ? ' selected' : ''),
         onclick: () => chooseTransport(tr.id)
       }, [
-        el('h3', { text: tr.name }),
-        el('p', { class: 'small', text: tr.description }),
+        el('h3', { text: transportLabel(state.app, tr.id) }),
+        el('p', { class: 'small', text: t('transport.' + state.app.id + '.' + tr.id + '.desc', tr.description) }),
         el('div', { class: 'pill-list' }, langs.map((l) => el('span', { class: 'badge info', text: l })))
       ])
     );
@@ -206,7 +212,7 @@ function renderWiring() {
 
   const table = el('div', { class: 'table-wrap' }, [
     el('table', {}, [
-      el('thead', {}, [el('tr', {}, [t('common.signal'), t('common.boardSide'), t('common.printerSide'), 'Cable', ''])]),
+      el('thead', {}, [el('tr', {}, [t('common.signal'), t('common.boardSide'), t('common.printerSide'), t('common.cable'), ''])]),
       el('tbody', {}, w.links.map((l) => el('tr', {}, [
         el('td', {}, [el('strong', { text: l.signal }), l.note ? el('div', { class: 'small muted', text: l.note }) : null]),
         el('td', { class: 'mono', text: l.board }),
@@ -224,36 +230,37 @@ function renderWiring() {
   bom.innerHTML = '';
   if (w.cables.length) {
     bom.append(el('div', { class: 'table-wrap' }, [el('table', {}, [
-      el('thead', {}, [el('tr', {}, ['Qty', 'Item', 'Note'].map((h) => el('th', { text: h })))]),
+      el('thead', {}, [el('tr', {}, [t('common.qty'), t('common.item'), t('common.note')].map((h) => el('th', { text: h })))]),
       el('tbody', {}, w.cables.map((c) => el('tr', {}, [el('td', { text: String(c.qty || 1) }), el('td', { text: c.item }), el('td', { class: 'small muted', text: c.note || '' })])))
     ])]));
   } else {
-    bom.innerHTML = '<div class="callout">No extra parts beyond the board, the printer and its cable.</div>';
+    bom.innerHTML = '<div class="callout">' + esc(t('install.wiring.nobom')) + '</div>';
   }
 
   const steps = $('#wiring-steps');
   steps.innerHTML = '';
   for (const s of w.steps) steps.append(el('li', { text: s }));
-  if (!w.steps.length) steps.append(el('li', { text: 'Wire the connections listed above, then power the board.' }));
+  if (!w.steps.length) steps.append(el('li', { text: t('install.wiring.nosteps') }));
 
   const req = $('#wiring-requirements');
   req.innerHTML = '';
   const reqList = el('ul');
-  for (const r of [...state.app.requirements, ...w.prerequisites]) reqList.append(el('li', { text: r }));
+  state.app.requirements.forEach((r, i) => reqList.append(el('li', { text: t('app.' + state.app.id + '.r' + i, r) })));
+  for (const r of w.prerequisites) reqList.append(el('li', { text: r }));
   req.append(el('div', { class: 'callout ok' }, [el('strong', { text: t('wizard.requirements') }), reqList]));
   req.append(el('h4', { text: t('common.board') }));
   req.append(boardFacts(state.board));
 
   const warn = $('#wiring-warnings');
   warn.innerHTML = '';
-  const all = [...w.warnings, ...(state.board.notes || []).map((n) => 'Board note: ' + n)];
+  const all = [...w.warnings, ...(state.board.notes || []).map((n) => t('install.wiring.boardnote') + ' ' + n)];
   if (all.length) {
     warn.append(el('div', { class: 'callout warn' }, [
       el('strong', { text: t('install.wiring.warnings') }),
       el('ul', {}, all.map((x) => el('li', { text: x })))
     ]));
   } else {
-    warn.innerHTML = '<div class="callout ok">No special warnings for this combination.</div>';
+    warn.innerHTML = '<div class="callout ok">' + esc(t('install.wiring.nowarn')) + '</div>';
   }
 }
 
@@ -262,7 +269,7 @@ function boardFacts(board) {
     [t('common.vendor'), board.vendor],
     [t('common.mcu'), board.mcu],
     [t('common.family'), board.family],
-    [t('common.radios'), Object.entries(board.radios).filter(([, v]) => v).map(([k]) => k).join(', ') || 'none'],
+    [t('common.radios'), Object.entries(board.radios).filter(([, v]) => v).map(([k]) => k).join(', ') || t('common.none')],
     [t('common.power'), board.power.input + ' (~' + board.power.typicalMa + ' mA typical, ' + board.power.maxMa + ' mA peak)'],
     ['Logic level', board.io.logicVoltage + (board.io.input5vTolerant ? ' (5V tolerant inputs)' : ' - not 5V tolerant')],
     ['USB', board.usb.port + ' - ' + board.usb.chip],
@@ -359,27 +366,28 @@ async function renderFlash() {
     const button = document.createElement('esp-web-install-button');
     button.setAttribute('manifest', path);
     const inner = el('button', { class: 'primary', slot: 'activate', text: t('nav.install') + ' - ' + state.board.name });
-    const unsupported = el('div', { slot: 'unsupported', class: 'callout warn', html: 'This browser has no Web Serial support. Use Chrome/Edge on desktop, or build and flash manually below.' });
+    const unsupported = el('div', { slot: 'unsupported', class: 'callout warn', html: esc(t('install.flash.unsupported')) });
     button.append(inner, unsupported);
     card.append(el('div', { class: 'row mt2' }, [button]));
-    card.append(el('p', { class: 'small muted', text: 'Hold BOOT, tap RESET, release BOOT if the port does not appear.' }));
+    card.append(el('p', { class: 'small muted', text: t('install.flash.boot') }));
   } else {
     card.append(el('div', { class: 'callout warn' }, [
       el('strong', { text: t('install.flash.notbuilt') }),
-      el('p', { class: 'small mb0', text: 'Manifest: ' + path })
+      el('p', { class: 'small mb0', text: t('install.flash.manifest') + ' ' + path })
     ]));
   }
   card.append(buildInstructions());
   host.append(card);
 
   const after = el('div', { class: 'card mt2' }, [
-    el('h3', { text: 'After flashing' }),
+    el('h3', { text: t('install.after.title') }),
     el('ol', { class: 'steps-list' }, [
-      el('li', { text: 'Disconnect the board from the computer and power it from a 5V supply.' }),
-      el('li', { text: 'Join the Wi-Fi network arsin_print_server (password arsin1234) - a setup wizard opens automatically.' }),
-      el('li', { text: 'Pick your office Wi-Fi, set the printer language and press Save; the bridge reconnects by itself forever.' }),
-      el('li', { text: 'Open http://arsin_print_server.local any time from the same network.' })
-    ])
+      el('li', { text: t('install.after.1') }),
+      el('li', { text: t('install.after.2') }),
+      el('li', { text: t('install.after.3') }),
+      el('li', { html: t('install.after.4').replace('http://arsin_print_server.local', '<code>http://arsin_print_server.local</code>') })
+    ]),
+    el('p', { class: 'small mb0', text: t('install.after.device') })
   ]);
   host.append(after);
 }
@@ -387,25 +395,35 @@ async function renderFlash() {
 function buildInstructions() {
   const board = state.board;
   const env = state.app.firmware.env || 'esp32';
-  const variant = state.app.firmware.variant || 'wifi';
+  const variant = (state.app.firmware.variant || 'wifi').toUpperCase();
   const lines = [];
+  lines.push('# one-time setup: the ESP cores are not in the default Arduino index');
+  lines.push('arduino-cli config init --overwrite');
+  lines.push('arduino-cli config add board_manager.additional_urls \\');
+  lines.push('  https://espressif.github.io/arduino-esp32/package_esp32_index.json \\');
+  lines.push('  https://arduino.esp8266.com/stable/package_esp8266com_index.json');
+  lines.push('arduino-cli core update-index');
+  lines.push('');
+  lines.push('# the device web app (designer, maintenance, docs) is embedded, so build it first');
+  lines.push('node tools/build-web-assets.mjs && node tools/build-web-assets.mjs --min');
+  lines.push('');
   if (board.family === 'esp8266') {
     lines.push('arduino-cli core install esp8266:esp8266');
     lines.push(`arduino-cli compile -b ${board.tool.fqbn} -e firmware/arsin_print_server_esp8266 \\`);
-    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_WIFI"`);
+    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_${variant}"`);
     lines.push(`arduino-cli upload -p /dev/ttyUSB0 -b ${board.tool.fqbn} firmware/arsin_print_server_esp8266`);
   } else if (env === 'rpi') {
     lines.push('curl -fsSL https://raw.githubusercontent.com/ArsinShaabani/Printer_middleware/main/firmware/raspberrypi/install.sh | sudo bash');
   } else {
     lines.push('arduino-cli core install esp32:esp32');
     lines.push(`arduino-cli compile -b ${board.tool.fqbn} -e firmware/arsin_print_server \\`);
-    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_${variant.toUpperCase()}"`);
+    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_${variant}"`);
     lines.push(`arduino-cli upload -p /dev/ttyACM0 -b ${board.tool.fqbn} firmware/arsin_print_server`);
   }
   return el('details', { class: 'mt2' }, [
     el('summary', { text: t('install.flash.manual') }),
     el('pre', { text: lines.join('\n') }),
-    el('p', { class: 'small muted', text: 'The GitHub Actions workflow builds every board/variant pair and publishes the manifests used by this page.' })
+    el('p', { class: 'small muted', text: t('install.flash.manual.hint') })
   ]);
 }
 
@@ -413,15 +431,15 @@ function piInstructions() {
   const card = el('div', { class: 'card' }, [
     el('div', { class: 'spread' }, [el('h3', { text: t('install.flash.sdcard') }), el('span', { class: 'badge brand', text: state.board.name })]),
     el('ol', { class: 'steps-list' }, [
-      el('li', { html: 'Flash <strong>' + esc(state.board.tool.image) + '</strong> with Raspberry Pi Imager. In the advanced options set the hostname, Wi-Fi and SSH.' }),
-      el('li', { text: 'Boot the Pi and connect over SSH (or a monitor + keyboard).' }),
-      el('li', { html: 'Run the installer: <code>curl -fsSL https://raw.githubusercontent.com/ArsinShaabani/Printer_middleware/main/firmware/raspberrypi/install.sh | sudo bash</code>' }),
-      el('li', { text: 'Open http://arsin_print_server.local and follow the first-run wizard (printer detection, drivers, sharing).' })
+      el('li', { html: t('install.pi.1').replace('{image}', '<strong>' + esc(state.board.tool.image) + '</strong>') }),
+      el('li', { text: t('install.pi.2') }),
+      el('li', { html: t('install.pi.3').replace('{cmd}', '<code>curl -fsSL https://raw.githubusercontent.com/ArsinShaabani/Printer_middleware/main/firmware/raspberrypi/install.sh | sudo bash</code>') }),
+      el('li', { text: t('install.pi.4') })
     ])
   ]);
   card.append(el('div', { class: 'callout info' }, [
-    el('strong', { text: 'Why the Pi?' }),
-    el('p', { class: 'small mb0', text: 'Printers that need a real driver (inkjets, lasers, GDI units) work through CUPS. The Arsin web app, label designer and maintenance console are installed on top.' })
+    el('strong', { text: t('install.pi.why.t') }),
+    el('p', { class: 'small mb0', text: t('install.pi.why.d') })
   ]));
   card.append(buildInstructions());
   return card;
@@ -472,19 +490,19 @@ function renderConfigure() {
       toast(t('device.online') + ': ' + (state.info.device || 'device'), 'ok');
       detail.innerHTML = '';
       detail.append(el('dl', { class: 'kv' }, [
-        el('dt', { text: 'Device' }), el('dd', { text: state.info.device || '' }),
-        el('dt', { text: 'Application' }), el('dd', { text: state.info.app || '' }),
-        el('dt', { text: 'Board' }), el('dd', { text: state.info.board || '' }),
-        el('dt', { text: 'Version' }), el('dd', { text: (state.info.version || '') + ' (' + (state.info.build || '') + ')' }),
-        el('dt', { text: 'Address' }), el('dd', { text: (state.info.ip || '') + ' / ' + (state.info.mdns || '') }),
-        el('dt', { text: 'Transport' }), el('dd', { text: state.info.transport || '' })
+        el('dt', { text: t('install.info.device') }), el('dd', { text: state.info.device || '' }),
+        el('dt', { text: t('install.info.app') }), el('dd', { text: state.info.app || '' }),
+        el('dt', { text: t('common.board') }), el('dd', { text: state.info.board || '' }),
+        el('dt', { text: t('tdash.version') }), el('dd', { text: (state.info.version || '') + ' (' + (state.info.build || '') + ')' }),
+        el('dt', { text: t('install.info.address') }), el('dd', { text: (state.info.ip || '') + ' / ' + (state.info.mdns || '') }),
+        el('dt', { text: t('common.transport') }), el('dd', { text: state.info.transport || '' })
       ]));
       detail.append(quickConfig());
     } catch (e) {
       stateBadge().textContent = t('device.offline');
       stateBadge().className = 'badge danger';
       detail.innerHTML = '';
-      detail.append(el('div', { class: 'callout danger', html: '<strong>Could not reach the device.</strong><p class="small mb0">' + esc(e.message) + '</p><p class="small mb0">Check that you joined the arsin_print_server Wi-Fi or that the board is on your network, and that the address is right.</p>' }));
+      detail.append(el('div', { class: 'callout danger', html: '<strong>' + esc(t('install.config.unreachable')) + '</strong><p class="small mb0">' + esc(e.message) + '</p><p class="small mb0">' + esc(t('install.config.unreachable.hint')) + '</p>' }));
     } finally {
       testBtn.disabled = false;
     }
@@ -495,20 +513,20 @@ function renderConfigure() {
 
 function quickConfig() {
   const wrap = el('div', { class: 'mt2' });
-  const ssidInput = el('input', { type: 'text', placeholder: 'Office Wi-Fi name' });
-  const passInput = el('input', { type: 'password', placeholder: 'Wi-Fi password', autocomplete: 'off' });
+  const ssidInput = el('input', { type: 'text', placeholder: t('install.config.ssid.placeholder') });
+  const passInput = el('input', { type: 'password', placeholder: t('install.config.password'), autocomplete: 'off' });
   const langSelect = el('select');
   for (const l of LANGUAGES) langSelect.append(el('option', { value: l.id, text: l.name + ' - ' + l.vendor }));
   const testPrintBtn = el('button', { class: 'primary', text: t('action.print') });
   const saveWifiBtn = el('button', { text: t('action.save') });
 
   const grid = el('div', { class: 'grid cols-2' }, [
-    el('div', { class: 'field' }, [el('label', { text: 'Join a Wi-Fi network (keeps reconnecting forever)' }), ssidInput]),
-    el('div', { class: 'field' }, [el('label', { text: 'Wi-Fi password' }), passInput]),
+    el('div', { class: 'field' }, [el('label', { text: t('install.config.join') }), ssidInput]),
+    el('div', { class: 'field' }, [el('label', { text: t('install.config.password') }), passInput]),
     el('div', { class: 'field' }, [el('label', { text: t('designer.language') }), langSelect]),
-    el('div', { class: 'field' }, [el('label', { text: 'Test' }), el('div', { class: 'row tight' }, [testPrintBtn])])
+    el('div', { class: 'field' }, [el('label', { text: t('action.test') }), el('div', { class: 'row tight' }, [testPrintBtn])])
   ]);
-  wrap.append(el('h4', { text: 'Quick setup' }), grid, el('div', { class: 'row mt1' }, [saveWifiBtn]));
+  wrap.append(el('h4', { text: t('install.config.quick') }), grid, el('div', { class: 'row mt1' }, [saveWifiBtn]));
 
   saveWifiBtn.addEventListener('click', async () => {
     if (!state.device) return;
@@ -555,7 +573,7 @@ function openAddBoard() {
   const existing = el('div', { class: 'mt2' });
   const list = getCustomBoards();
   if (list.length) {
-    existing.append(el('h4', { text: 'Your boards' }));
+    existing.append(el('h4', { text: t('custom.board.list') }));
     for (const b of list) {
       existing.append(el('div', { class: 'row spread' }, [
         el('span', { text: b.name + ' (' + b.id + ')' }),

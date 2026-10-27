@@ -93,9 +93,19 @@ static const unsigned int WEB_ASSETS_COUNT = N;
 
 `web_assets.h` is generated and git ignored.  When it is missing (a plain
 `arduino-cli compile` of this repository) the firmware falls back to
-`web_assets_builtin.h`, a small self contained page, so the device is never
-unreachable.  Gzipped entries (`gz == true`) are served with
+`web_assets_builtin.h` - a small self contained page that still exposes the REST API - so the
+device is never unreachable.  `web_assets_builtin.h` is a *shared* file: it must exist in both
+sketch folders and stay byte-identical (checked by `firmware/tools/check-sources.mjs` and
+`node firmware/tools/check-assets.mjs`), otherwise one of the two boards cannot be compiled
+from a clean checkout.  Gzipped entries (`gz == true`) are served with
 `Content-Encoding: gzip`.
+
+The bundle that is embedded is the complete control panel - `index.html`,
+`install.html`, `designer.html`, `troubleshoot.html`, `docs.html` plus every ES module they
+import.  The label designer and the maintenance console are the reason a user connects to the
+board over Wi-Fi, so they are part of **every** build, ESP32 and ESP8266 alike; the `--min`
+flag only selects which header is written.  Both pages probe `/api/health` at start-up and,
+when the board is the one serving them, connect to `window.location.origin` automatically.
 
 ## 2. Variants (compile flags)
 

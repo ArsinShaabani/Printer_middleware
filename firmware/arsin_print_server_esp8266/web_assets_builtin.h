@@ -6,7 +6,7 @@
  * usable page.  It mirrors the structure the generator emits:
  *
  *   struct WebAsset { const char* path; const char* mime; const uint8_t* data;
- *                     unsigned int len; bool gz; };
+ *                     unsigned int len; unsigned int originalLen; bool gz; };
  */
 #ifndef ARSIN_WEB_ASSETS_BUILTIN_H
 #define ARSIN_WEB_ASSETS_BUILTIN_H
@@ -23,6 +23,7 @@ struct WebAsset {
   const char* mime;
   const uint8_t* data;
   unsigned int len;
+  unsigned int originalLen;
   bool gz;
 };
 

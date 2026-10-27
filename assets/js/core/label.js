@@ -255,12 +255,14 @@ function renderElementSvg(el, doc, dpi, opts) {
       const tx = el.align === 'center' ? x + (el.w ? w / 2 : 0) : el.align === 'right' ? x + w : x;
       const lines = substituteVars(el.text, vars).split('\n');
       const fill = el.reverse ? '#ffffff' : '#000000';
+      const lh = Number(el.lineHeight) > 0 ? Number(el.lineHeight) : 1.2;
+      const ls = el.letterSpacing ? ` letter-spacing="${Math.max(0, Math.round(mmToDots(el.letterSpacing, dpi)))}"` : '';
       const out = [];
-      if (el.reverse) out.push(`<rect x="${x}" y="${y}" width="${w || size * 8}" height="${size * lines.length * 1.2}" fill="#000000"/>`);
+      if (el.reverse) out.push(`<rect x="${x}" y="${y}" width="${w || size * 8}" height="${size * lines.length * lh}" fill="#000000"/>`);
       lines.forEach((line, i) => {
         out.push(
-          `<text x="${tx}" y="${y + size * (i + 1) - size * 0.15}" font-size="${size}" font-weight="${el.bold ? 'bold' : 'normal'}" ` +
-            `font-style="${el.italic ? 'italic' : 'normal'}" fill="${fill}" text-anchor="${anchor}"${el.underline ? ' text-decoration="underline"' : ''}>${esc(line)}</text>`
+          `<text x="${tx}" y="${y + size * (i * lh + 1) - size * 0.15}" font-size="${size}" font-weight="${el.bold ? 'bold' : 'normal'}" ` +
+            `font-style="${el.italic ? 'italic' : 'normal'}" fill="${fill}" text-anchor="${anchor}"${ls}${el.underline ? ' text-decoration="underline"' : ''}>${esc(line)}</text>`
         );
       });
       return `<g${elementTransform(el, dpi)}>${out.join('')}</g>`;
@@ -304,7 +306,11 @@ function renderElementSvg(el, doc, dpi, opts) {
     }
     case 'box': {
       const t = Math.max(1, mmToDots(el.thicknessMm || 0.4, dpi));
-      if (el.filled) return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000"/>`;
+      const r = el.radiusMm ? Math.max(0, Math.round(mmToDots(el.radiusMm, dpi))) : 0;
+      if (el.filled) return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="#000000"/>`;
+      if (r > 0) {
+        return `<rect x="${x + t / 2}" y="${y + t / 2}" width="${Math.max(0, w - t)}" height="${Math.max(0, h - t)}" rx="${r}" fill="none" stroke="#000000" stroke-width="${t}"/>`;
+      }
       return (
         `<g fill="#000000"><rect x="${x}" y="${y}" width="${w}" height="${t}"/>` +
         `<rect x="${x}" y="${y + h - t}" width="${w}" height="${t}"/>` +
@@ -426,9 +432,13 @@ export function renderZpl(doc, ctx = ctxFor(doc)) {
         out.push(`^FO${x},${y}^GB${el.w ? w : t},${el.h ? h : t},${t}^FS`);
         break;
       }
-      case 'box':
-        out.push(`^FO${x},${y}^GB${w},${h},${Math.max(1, mmToDots(el.thicknessMm || 0.4, ctx.dpi))}${el.filled ? ',B' : ''}^FS`);
+      case 'box': {
+        const t = Math.max(1, mmToDots(el.thicknessMm || 0.4, ctx.dpi));
+        const r = el.radiusMm ? Math.max(0, Math.round(mmToDots(el.radiusMm, ctx.dpi))) : 0;
+        if (el.filled) out.push(`^FO${x},${y}^GB${w},${h},${Math.max(w, h)},0^FS`);
+        else out.push(`^FO${x},${y}^GB${w},${h},${t},${r}^FS`);
         break;
+      }
       default:
         break;
     }

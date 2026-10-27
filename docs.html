@@ -7,6 +7,9 @@
 <title>Docs &amp; API - Arsin Print Server</title>
 <meta name="description" content="Documentation: wiring library, printer language reference, REST API, build instructions, board JSON schema and troubleshooting FAQ.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
@@ -14,39 +17,43 @@
 
 <main class="wrap">
   <h1 data-i18n="nav.docs"></h1>
-  <p class="lead">Everything needed to build, flash, wire and integrate Arsin Print Server - on ESP32, ESP8266 and Raspberry Pi.</p>
+  <p class="lead" data-i18n="docs.lead"></p>
 
   <div class="tabs" data-group="docs">
-    <button data-tab="start" class="active">Quick start</button>
-    <button data-tab="wiring">Wiring library</button>
-    <button data-tab="languages">Printer languages</button>
-    <button data-tab="api">REST API</button>
-    <button data-tab="boards">Add a board</button>
-    <button data-tab="build">Build &amp; deploy</button>
-    <button data-tab="faq">Troubleshooting FAQ</button>
+    <button data-tab="start" class="active" data-i18n="docs.tab.start"></button>
+    <button data-tab="wiring" data-i18n="docs.tab.wiring"></button>
+    <button data-tab="languages" data-i18n="docs.tab.languages"></button>
+    <button data-tab="api" data-i18n="docs.tab.api"></button>
+    <button data-tab="boards" data-i18n="docs.tab.boards"></button>
+    <button data-tab="build" data-i18n="docs.tab.build"></button>
+    <button data-tab="faq" data-i18n="docs.tab.faq"></button>
   </div>
 
   <div data-tabpanel="start" data-group="docs">
     <div class="grid cols-2">
       <div class="card">
-        <h3>1. Flash the board</h3>
-        <p class="small">Open the <a href="install.html">installer</a>, choose an application, a transport and your board. ESP32/ESP8266 flash from the browser with Web Serial; Raspberry Pi uses Raspberry Pi Imager plus a one-line installer.</p>
+        <h3 data-i18n="docs.start.1.t"></h3>
+        <p class="small" data-i18n-html="docs.start.1.d"></p>
       </div>
       <div class="card">
-        <h3>2. Wire the printer</h3>
-        <p class="small">The installer generates a diagram, a pin table, a bill of materials and a printable guide for your exact board and transport. The <a href="#" data-goto="wiring">wiring library</a> lists every combination.</p>
+        <h3 data-i18n="docs.start.2.t"></h3>
+        <p class="small" data-i18n-html="docs.start.2.d"></p>
       </div>
       <div class="card">
-        <h3>3. Join it to your network</h3>
-        <p class="small">The board creates the Wi-Fi network <code>arsin_print_server</code> (password <code>arsin1234</code>). The captive portal opens the wizard; enter your office Wi-Fi once and the bridge reconnects forever. Then use <code>http://arsin_print_server.local</code>.</p>
+        <h3 data-i18n="docs.start.3.t"></h3>
+        <p class="small" data-i18n-html="docs.start.3.d"></p>
       </div>
       <div class="card">
-        <h3>4. Add it to your POS / ERP</h3>
-        <p class="small">Add a network printer on port <code>9100</code> (raw / JetDirect). Anything that prints to a socket printer works: POS software, CUPS, mobile apps, ERP label printing.</p>
+        <h3 data-i18n="docs.start.4.t"></h3>
+        <p class="small" data-i18n-html="docs.start.4.d"></p>
       </div>
     </div>
     <div class="callout info mt2">
-      <strong>Default ports:</strong> 80 web app and REST API, 9100 raw print, 5353 mDNS, 631 IPP (Raspberry Pi build).
+      <strong data-i18n="docs.ports.t"></strong> <span data-i18n="docs.ports.d"></span>
+    </div>
+    <div class="callout ok mt2">
+      <strong data-i18n="docs.device.t"></strong>
+      <p class="small mb0" data-i18n="docs.device.d"></p>
     </div>
   </div>
 

@@ -19,8 +19,8 @@ function renderApps() {
   host.innerHTML = '';
   for (const app of state.catalog.apps) {
     const card = el('div', { class: 'card' }, [
-      el('div', { class: 'spread' }, [el('h3', { text: app.name }), el('span', { class: 'badge brand', text: app.transports.length + ' transport' + (app.transports.length > 1 ? 's' : '') })]),
-      el('p', { class: 'small', text: app.tagline }),
+      el('div', { class: 'spread' }, [el('h3', { text: app.name }), el('span', { class: 'badge brand', text: app.transports.length + ' ' + (app.transports.length === 1 ? t('home.transport.one', 'transport') : t('home.transports', 'transports')) })]),
+      el('p', { class: 'small', text: t('app.' + app.id + '.tagline', app.tagline) }),
       el('div', { class: 'pill-list mb2' }, app.transports.map((tr) => el('span', { class: 'badge', text: tr.name }))),
       el('div', { class: 'pill-list' }, app.capabilities.slice(0, 6).map((c) => el('span', { class: 'badge info', text: c }))),
       el('div', { class: 'row mt2' }, [
@@ -34,14 +34,14 @@ function renderApps() {
 
 function showApp(app) {
   const host = document.createElement('div');
-  host.append(el('p', { class: 'small', text: app.summary }));
+  host.append(el('p', { class: 'small', text: t('app.' + app.id + '.summary', app.summary) }));
   host.append(el('h4', { text: t('common.features') }));
   const ul = el('ul', { class: 'small' });
-  for (const f of app.features) ul.append(el('li', { text: f }));
+  app.features.forEach((f, i) => ul.append(el('li', { text: t('app.' + app.id + '.f' + i, f) })));
   host.append(ul);
   host.append(el('h4', { text: t('wizard.requirements') }));
   const req = el('ul', { class: 'small' });
-  for (const r of app.requirements) req.append(el('li', { text: r }));
+  app.requirements.forEach((r, i) => req.append(el('li', { text: t('app.' + app.id + '.r' + i, r) })));
   host.append(req);
   import('./shell.js').then(({ openModal }) => openModal({ title: app.name, body: host }));
 }
@@ -50,9 +50,9 @@ function renderFamilies() {
   const select = document.getElementById('board-family');
   if (!select) return;
   select.innerHTML = '';
-  select.append(el('option', { value: 'all', text: 'All families' }));
+  select.append(el('option', { value: 'all', text: t('home.hardware.all', 'All families') }));
   for (const g of groupByFamily(state.catalog.boards)) {
-    select.append(el('option', { value: g.family, text: g.family.toUpperCase() + ' (' + g.items.length + ')' }));
+    select.append(el('option', { value: g.family, text: t('family.' + g.family, g.family.toUpperCase()) + ' (' + g.items.length + ')' }));
   }
   select.addEventListener('change', () => {
     state.family = select.value;
@@ -76,7 +76,7 @@ function renderBoards() {
         el('td', { class: 'small', text: board.mcu }),
         el('td', { class: 'small', text: radios }),
         el('td', { class: 'small', text: board.power.input + ' \u00b7 ~' + board.power.typicalMa + ' mA' }),
-        el('td', {}, [el('span', { class: 'badge ok', text: String(apps.length) + ' variants' })]),
+        el('td', {}, [el('span', { class: 'badge ok', text: String(apps.length) + ' ' + t('home.table.variants', 'variants') })]),
         el('td', {}, [el('a', { class: 'btn small', href: 'install.html?board=' + encodeURIComponent(board.id), text: t('nav.install') })])
       ])
     );
@@ -86,7 +86,7 @@ function renderBoards() {
     return;
   }
   const table = el('table', {}, [
-    el('thead', {}, [el('tr', {}, [t('common.board'), t('common.mcu'), t('common.radios'), t('common.power'), 'Firmware', ''].map((h) => el('th', { text: h })))]),
+    el('thead', {}, [el('tr', {}, [t('common.board'), t('common.mcu'), t('common.radios'), t('common.power'), t('home.table.firmware', 'Firmware'), ''].map((h) => el('th', { text: h })))]),
     el('tbody', {}, rows)
   ]);
   host.innerHTML = '';

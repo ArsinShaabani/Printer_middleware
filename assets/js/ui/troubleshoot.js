@@ -4,7 +4,7 @@
  */
 import { initShell, $, $$, el, esc, t, toast, download, copyText, store, clamp, openModal, confirmDialog } from './shell.js';
 import { ACTIONS, LANGUAGES, LANGUAGE_BY_ID, actionsForLanguage, buildCommand, parseRawInput, toHex, toAscii } from '../core/commands.js';
-import { Device, DemoDevice, normalizeBase, demoConfig } from './device.js';
+import { Device, DemoDevice, normalizeBase, demoConfig, detectLocalDevice, localDeviceBase } from './device.js';
 
 initShell();
 
@@ -81,40 +81,41 @@ function kv(node, pairs) {
 function renderDashboard() {
   const s = state.status || {};
   const info = state.info || {};
+  const yes = (v) => (v ? t('common.yes', 'yes') : t('common.no', 'no'));
   kv($('#dash-status'), [
-    ['State', s.state],
-    ['Printer', (s.printer && s.printer.status) || '-'],
-    ['Printer connected', s.printer && s.printer.connected ? 'yes' : 'no'],
-    ['Last printer reply', s.printer && s.printer.lastReply],
-    ['Queue depth', s.queue && s.queue.depth],
-    ['Last job', s.queue && s.queue.lastJobId],
-    ['Uptime', info.uptimeMs ? Math.round(info.uptimeMs / 1000) + ' s' : '-'],
-    ['Free heap', info.freeHeap ? Math.round(info.freeHeap / 1024) + ' kB' : '-'],
-    ['Version', (info.version || '') + ' ' + (info.build || '')],
-    ['Board / app', (info.board || '') + ' / ' + (info.app || '')],
-    ['Transport', info.transport],
-    ['Language', info.language]
+    [t('tdash.state', 'State'), s.state],
+    [t('tdash.printer', 'Printer'), (s.printer && s.printer.status) || '-'],
+    [t('tdash.printerConnected', 'Printer connected'), yes(s.printer && s.printer.connected)],
+    [t('tdash.lastReply', 'Last printer reply'), s.printer && s.printer.lastReply],
+    [t('tdash.queue', 'Queue depth'), s.queue && s.queue.depth],
+    [t('tdash.lastJob', 'Last job'), s.queue && s.queue.lastJobId],
+    [t('tdash.uptime', 'Uptime'), info.uptimeMs ? Math.round(info.uptimeMs / 1000) + ' s' : '-'],
+    [t('tdash.heap', 'Free heap'), info.freeHeap ? Math.round(info.freeHeap / 1024) + ' kB' : '-'],
+    [t('tdash.version', 'Version'), (info.version || '') + ' ' + (info.build || '')],
+    [t('tdash.boardApp', 'Board / app'), (info.board || '') + ' / ' + (info.app || '')],
+    [t('tdash.transport', 'Transport'), info.transport],
+    [t('tdash.language', 'Language'), info.language]
   ]);
   kv($('#dash-counters'), [
-    ['Jobs', s.counters && s.counters.jobs],
-    ['Bytes', s.counters && s.counters.bytes],
-    ['Errors', s.counters && s.counters.errors]
+    [t('tdash.jobs', 'Jobs'), s.counters && s.counters.jobs],
+    [t('tdash.bytes', 'Bytes'), s.counters && s.counters.bytes],
+    [t('tdash.errors', 'Errors'), s.counters && s.counters.errors]
   ]);
   kv($('#dash-wifi'), [
-    ['Mode', (s.wifi && s.wifi.mode) || info.wifiMode],
-    ['SSID', s.wifi && s.wifi.ssid],
-    ['IP', s.wifi && s.wifi.ip],
-    ['RSSI', s.wifi && s.wifi.rssi != null ? s.wifi.rssi + ' dBm' : '-'],
-    ['mDNS', info.mdns],
-    ['Hostname', info.hostname]
+    [t('tdash.mode', 'Mode'), (s.wifi && s.wifi.mode) || info.wifiMode],
+    [t('tdash.ssid', 'SSID'), s.wifi && s.wifi.ssid],
+    [t('tdash.ip', 'IP'), s.wifi && s.wifi.ip],
+    [t('tdash.rssi', 'RSSI'), s.wifi && s.wifi.rssi != null ? s.wifi.rssi + ' dBm' : '-'],
+    [t('tdash.mdns', 'mDNS'), info.mdns],
+    [t('tdash.hostname', 'Hostname'), info.hostname]
   ]);
   kv($('#dash-io'), [
-    ['Bluetooth enabled', s.bt && s.bt.enabled ? 'yes' : 'no'],
-    ['Bluetooth connected', s.bt && s.bt.connected ? 'yes' : 'no'],
-    ['Bluetooth name', s.bt && s.bt.name],
-    ['USB connected', s.usb && s.usb.connected ? 'yes' : 'no'],
-    ['USB VID/PID', s.usb ? (s.usb.vid || '') + ' / ' + (s.usb.pid || '') : '-'],
-    ['USB device', s.usb ? (s.usb.manufacturer || '') + ' ' + (s.usb.product || '') : '-']
+    [t('tdash.btEnabled', 'Bluetooth enabled'), yes(s.bt && s.bt.enabled)],
+    [t('tdash.btConnected', 'Bluetooth connected'), yes(s.bt && s.bt.connected)],
+    [t('tdash.btName', 'Bluetooth name'), s.bt && s.bt.name],
+    [t('tdash.usbConnected', 'USB connected'), yes(s.usb && s.usb.connected)],
+    [t('tdash.usbIds', 'USB VID/PID'), s.usb ? (s.usb.vid || '') + ' / ' + (s.usb.pid || '') : '-'],
+    [t('tdash.usbDevice', 'USB device'), s.usb ? (s.usb.manufacturer || '') + ' ' + (s.usb.product || '') : '-']
   ]);
 }
 
@@ -134,14 +135,17 @@ function renderMaintenance() {
   const host = $('#maint-grid');
   host.innerHTML = '';
   const actions = actionsForLanguage(state.lang);
-  $('#maint-count').textContent = actions.filter((a) => a.supported).length + ' of ' + actions.length + ' actions supported by ' + (LANGUAGE_BY_ID[state.lang] || {}).name;
+  $('#maint-count').textContent = t('troubleshoot.count', '{supported} of {total} actions supported by {name}')
+    .replace('{supported}', String(actions.filter((a) => a.supported).length))
+    .replace('{total}', String(actions.length))
+    .replace('{name}', (LANGUAGE_BY_ID[state.lang] || {}).name || '');
   for (const action of actions) {
     const card = el('div', { class: 'card pad-sm' + (action.supported ? '' : ' disabled') }, [
       el('div', { class: 'spread' }, [
-        el('strong', { text: action.name }),
-        el('span', { class: 'badge ' + (action.confidence === 'standard' ? 'ok' : action.confidence === 'vendor' ? 'info' : 'warn'), text: action.confidence })
+        el('strong', { text: t('maint.action.' + action.id, action.name) }),
+        el('span', { class: 'badge ' + (action.confidence === 'standard' ? 'ok' : action.confidence === 'vendor' ? 'info' : 'warn'), text: t('common.confidence.' + action.confidence, action.confidence) })
       ]),
-      el('p', { class: 'small muted', text: action.desc })
+      el('p', { class: 'small muted', text: t('maint.action.' + action.id + '.desc', action.desc) })
     ]);
     const params = {};
     if (action.params && action.params.length) {
@@ -163,7 +167,7 @@ function renderMaintenance() {
       card.append(grid);
     }
     card.append(el('div', { class: 'row tight' }, [
-      el('button', { class: 'btn small', text: 'Preview', onclick: () => showPreview(action.id, params) }),
+      el('button', { class: 'btn small', text: t('troubleshoot.preview'), onclick: () => showPreview(action.id, params) }),
       el('button', { class: 'btn small primary', text: t('action.send'), disabled: !action.supported, onclick: () => runAction(action.id, params) })
     ]));
     if (action.note) card.append(el('p', { class: 'small muted mt1 mb0', text: action.note }));
@@ -466,13 +470,13 @@ function wireWifi() {
     try {
       const res = await state.device.scanWifi();
       host.innerHTML = '';
-      const ssid = el('input', { type: 'text', placeholder: 'SSID' });
-      const pass = el('input', { type: 'password', placeholder: 'Password' });
+      const ssid = el('input', { type: 'text', placeholder: t('troubleshoot.wifi.ssid') });
+      const pass = el('input', { type: 'password', placeholder: t('troubleshoot.wifi.password') });
       for (const net of res.networks || []) {
         host.append(el('div', { class: 'row spread' }, [
           el('span', { text: net.ssid + (net.secure ? ' \ud83d\udd12' : '') }),
           el('span', { class: 'small muted', text: net.rssi + ' dBm' }),
-          el('button', { class: 'btn small', text: 'Use', onclick: () => { ssid.value = net.ssid; } })
+          el('button', { class: 'btn small', text: t('troubleshoot.wifi.use'), onclick: () => { ssid.value = net.ssid; } })
         ]));
       }
       host.append(el('div', { class: 'grid cols-2 mt2' }, [
@@ -539,6 +543,24 @@ function wireWifi() {
   $('#dev-connect').addEventListener('click', () => connect(false));
   $('#dev-demo').addEventListener('click', () => connect(true));
   $('#auto-refresh').dispatchEvent(new Event('change'));
-  if (saved.host) connect(false);
-  else connect(true);
+  // When the page is served by the board itself the device address is the
+  // current origin - connect straight away instead of asking for an IP.
+  detectLocalDevice().then((local) => {
+    if (local) {
+      const base = localDeviceBase();
+      $('#dev-host').value = base;
+      store.set('session', { host: base, apiKey: saved.apiKey || '' });
+      const banner = $('#device-banner');
+      if (banner) {
+        banner.hidden = false;
+        banner.innerHTML = '';
+        banner.append(el('span', { text: t('troubleshoot.servedByDevice', 'This page is served by the device itself - it is already connected.') }));
+      }
+      connect(false);
+    } else if (saved.host) {
+      connect(false);
+    } else {
+      connect(true);
+    }
+  });
 })();
