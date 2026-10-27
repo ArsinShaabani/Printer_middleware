@@ -8,7 +8,7 @@
  * so nothing the printer can do is hidden behind hand-edited JSON.
  */
 import {
-  initShell, $, $$, el, esc, t, toast, openModal, confirmDialog, download, copyText, store, uid, clamp, selectTab
+  initShell, $, $$, el, t, toast, openModal, download, copyText, store, uid, clamp
 } from './shell.js';
 import {
   createLabelDoc, renderLabel, renderLabelSvg, renderLabelRaster, SIZE_PRESETS, mmToDots, substituteVars
