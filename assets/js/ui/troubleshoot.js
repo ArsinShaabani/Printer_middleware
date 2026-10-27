@@ -164,7 +164,7 @@ function renderMaintenance() {
       card.append(grid);
     }
     card.append(el('div', { class: 'row tight' }, [
-      el('button', { class: 'btn small', text: 'Preview', onclick: () => showPreview(action.id, params) }),
+      el('button', { class: 'btn small', text: t('troubleshoot.preview'), onclick: () => showPreview(action.id, params) }),
       el('button', { class: 'btn small primary', text: t('action.send'), disabled: !action.supported, onclick: () => runAction(action.id, params) })
     ]));
     if (action.note) card.append(el('p', { class: 'small muted mt1 mb0', text: action.note }));
@@ -467,13 +467,13 @@ function wireWifi() {
     try {
       const res = await state.device.scanWifi();
       host.innerHTML = '';
-      const ssid = el('input', { type: 'text', placeholder: 'SSID' });
-      const pass = el('input', { type: 'password', placeholder: 'Password' });
+      const ssid = el('input', { type: 'text', placeholder: t('troubleshoot.wifi.ssid') });
+      const pass = el('input', { type: 'password', placeholder: t('troubleshoot.wifi.password') });
       for (const net of res.networks || []) {
         host.append(el('div', { class: 'row spread' }, [
           el('span', { text: net.ssid + (net.secure ? ' \ud83d\udd12' : '') }),
           el('span', { class: 'small muted', text: net.rssi + ' dBm' }),
-          el('button', { class: 'btn small', text: 'Use', onclick: () => { ssid.value = net.ssid; } })
+          el('button', { class: 'btn small', text: t('troubleshoot.wifi.use'), onclick: () => { ssid.value = net.ssid; } })
         ]));
       }
       host.append(el('div', { class: 'grid cols-2 mt2' }, [
