@@ -8,7 +8,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "validate": "node tools/validate-catalogs.mjs",
-    "check:firmware": "node firmware/tools/check-sources.mjs && node firmware/tools/check-assets.mjs && node firmware/tools/check-print-streaming.mjs",
+    "check:firmware": "node firmware/tools/check-sources.mjs && node firmware/tools/check-syntax.mjs && node firmware/tools/check-assets.mjs && node firmware/tools/check-print-streaming.mjs",
     "build:web-assets": "node tools/build-web-assets.mjs && node tools/build-web-assets.mjs --min",
     "build:manifests": "node tools/generate-manifests.mjs",
     "build": "npm run build:web-assets && npm run build:manifests",
