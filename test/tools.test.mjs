@@ -78,6 +78,49 @@ test('the validator fails (exit 1) when a catalog is broken', async () => {
   }
 });
 
+/* ------------------------------------------------- firmware static checks ---- */
+
+test('the firmware sources pass the structural checks', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-sources.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: no structural problems/, stdout);
+});
+
+test('the embedded web-asset tables are consistent for both sketches', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-assets.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: the embedded asset tables are consistent/, stdout);
+});
+
+test('the firmware streams large /api/print bodies instead of buffering them', async () => {
+  const { stdout } = await run(process.execPath, ['firmware/tools/check-print-streaming.mjs'], { cwd: ROOT });
+  assert.match(stdout, /OK: \/api\/print streams/, stdout);
+});
+
+test('the shipped web-asset bundle embeds the designer, the maintenance console and the docs', async () => {
+  const { buildAssets } = await import('../tools/build-web-assets.mjs');
+  const assets = await buildAssets();
+  const paths = assets.map((a) => a.path);
+  for (const needed of [
+    '/index.html',
+    '/install.html',
+    '/designer.html',
+    '/troubleshoot.html',
+    '/docs.html',
+    '/assets/js/ui/designer.js',
+    '/assets/js/ui/troubleshoot.js',
+    '/assets/js/ui/docs.js',
+    '/assets/css/app.css',
+    '/data/boards.json',
+    '/data/apps.json'
+  ]) {
+    assert.ok(paths.includes(needed), `the device bundle must embed ${needed}`);
+  }
+  const mini = await buildAssets({ min: true });
+  const miniPaths = mini.map((a) => a.path);
+  for (const needed of ['/designer.html', '/assets/js/ui/designer.js', '/troubleshoot.html', '/assets/js/ui/troubleshoot.js']) {
+    assert.ok(miniPaths.includes(needed), `the ESP8266 bundle must embed ${needed}`);
+  }
+});
+
 /* ------------------------------------------------------------ serve.mjs ---- */
 
 test('serve.mjs maps the documented MIME types', () => {
