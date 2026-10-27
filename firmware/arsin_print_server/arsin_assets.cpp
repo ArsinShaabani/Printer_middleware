@@ -9,7 +9,7 @@
 #if !ARSIN_HAS_GENERATED_ASSETS
 /* Fallback table: the built-in single page, served for every unknown path. */
 const WebAsset WEB_ASSETS[] = {
-    {"/", "text/html; charset=utf-8", (const uint8_t*)ARSIN_BUILTIN_INDEX, (unsigned int)(sizeof(ARSIN_BUILTIN_INDEX) - 1), false},
+    {"/", "text/html; charset=utf-8", (const uint8_t*)ARSIN_BUILTIN_INDEX, (unsigned int)(sizeof(ARSIN_BUILTIN_INDEX) - 1), (unsigned int)(sizeof(ARSIN_BUILTIN_INDEX) - 1), false},
 };
 const unsigned int WEB_ASSETS_COUNT = sizeof(WEB_ASSETS) / sizeof(WEB_ASSETS[0]);
 #endif

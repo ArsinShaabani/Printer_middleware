@@ -16,6 +16,44 @@ export function normalizeBase(input) {
   return s.replace(/\/+$/, '');
 }
 
+/** The origin the current page is served from (the device when it serves us). */
+export function localDeviceBase() {
+  try {
+    if (typeof location === 'undefined' || !location.origin) return '';
+    return String(location.origin).replace(/\/+$/, '');
+  } catch (e) {
+    return '';
+  }
+}
+
+let localDeviceProbe = null;
+
+/**
+ * True when this page is being served *by* an Arsin print server, i.e. the user
+ * opened http://arsin_print_server.local (or the device IP) instead of the
+ * hosted website. The hosted site has no /api/health, so the probe fails there.
+ *
+ * The result is cached: it never changes for the lifetime of the page.
+ */
+export function detectLocalDevice(timeout = 2500) {
+  if (localDeviceProbe) return localDeviceProbe;
+  localDeviceProbe = (async () => {
+    try {
+      if (typeof fetch !== 'function') return false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      const res = await fetch('/api/health', { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+      if (!res || !res.ok) return false;
+      const text = await res.text();
+      return /arsin/i.test(text);
+    } catch (e) {
+      return false;
+    }
+  })();
+  return localDeviceProbe;
+}
+
 export class Device {
   constructor(baseUrl, apiKey = '') {
     this.base = normalizeBase(baseUrl);

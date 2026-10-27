@@ -7,6 +7,9 @@
 <title>Label designer - Arsin Print Server</title>
 <meta name="description" content="Design labels and receipts in the browser and print them on ESC/POS, ZPL, TSPL, EPL, CPCL, Star or plain printers.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
@@ -19,6 +22,8 @@
       <p class="small" data-i18n="designer.subtitle"></p>
     </div>
     <div class="row tight no-print">
+      <button id="btn-undo" class="icon-btn ghost" title="Undo (Ctrl+Z)" disabled>&#8630;</button>
+      <button id="btn-redo" class="icon-btn ghost" title="Redo (Ctrl+Shift+Z)" disabled>&#8631;</button>
       <select id="preset" style="max-width:230px" title="Label size"></select>
       <select id="language" style="max-width:210px" title="Printer language"></select>
       <select id="mode" style="max-width:250px" title="Output mode">
@@ -31,18 +36,15 @@
     </div>
   </div>
 
+  <div id="device-banner" class="callout ok no-print" hidden></div>
+
   <div class="designer-layout">
     <aside class="stack no-print">
       <div class="card pad-sm">
         <h3 class="mb1" data-i18n="designer.elements"></h3>
-        <div class="grid" style="grid-template-columns:1fr 1fr">
-          <button class="btn small" data-add="text" data-i18n="designer.add.text"></button>
-          <button class="btn small" data-add="barcode" data-i18n="designer.add.barcode"></button>
-          <button class="btn small" data-add="qrcode" data-i18n="designer.add.qrcode"></button>
-          <button class="btn small" data-add="image" data-i18n="designer.add.image"></button>
-          <button class="btn small" data-add="line" data-i18n="designer.add.line"></button>
-          <button class="btn small" data-add="box" data-i18n="designer.add.box"></button>
-        </div>
+        <div id="palette"></div>
+        <h4 class="mt2 mb1 small muted" data-i18n="designer.presets"></h4>
+        <div id="preset-list" class="row tight"></div>
       </div>
       <div class="card pad-sm">
         <div class="spread"><h3 class="mb1">Layers</h3><span class="small muted" id="el-count">0</span></div>
@@ -55,15 +57,29 @@
       </div>
     </aside>
 
-    <section>
-      <div class="canvas-shell">
-        <div class="label-paper" id="preview"></div>
+    <section class="designer-canvas">
+      <div class="canvas-frame">
+        <div class="ruler ruler-h" id="ruler-h"></div>
+        <div class="ruler ruler-v" id="ruler-v"></div>
+        <div class="canvas-shell">
+          <div class="label-paper" id="preview"></div>
+        </div>
       </div>
-      <div class="row tight mt1 no-print">
-        <button id="btn-zoom-out" class="btn small">-</button>
+      <div class="row tight mt1 no-print canvas-bar">
+        <button id="btn-zoom-out" class="btn small" title="Zoom out">&minus;</button>
         <span class="small muted" id="zoom-label">100%</span>
-        <button id="btn-zoom-in" class="btn small">+</button>
-        <label class="switch small"><input type="checkbox" id="grid-toggle"> grid</label>
+        <button id="btn-zoom-in" class="btn small" title="Zoom in">+</button>
+        <button id="btn-zoom-reset" class="btn small ghost" title="Back to 100%">100%</button>
+        <label class="switch small"><input type="checkbox" id="grid-toggle"> <span data-i18n="designer.grid"></span></label>
+        <label class="switch small"><input type="checkbox" id="snap-toggle"> <span data-i18n="designer.snap"></span></label>
+        <label class="switch small"><span data-i18n="designer.gridSize"></span>
+          <select id="grid-size" style="max-width:90px">
+            <option value="0.5">0.5 mm</option>
+            <option value="1">1 mm</option>
+            <option value="2">2 mm</option>
+            <option value="5">5 mm</option>
+          </select>
+        </label>
         <span class="small muted" id="size-label"></span>
       </div>
     </section>
@@ -74,7 +90,12 @@
         <div id="props" class="stack"></div>
       </div>
       <div class="card pad-sm">
-        <h3 class="mb1">Document</h3>
+        <h3 class="mb1" data-i18n="designer.arrange"></h3>
+        <div id="arrange" class="stack"></div>
+        <button id="btn-center" class="btn small block mt1" data-i18n="designer.center"></button>
+      </div>
+      <div class="card pad-sm">
+        <h3 class="mb1" data-i18n="designer.document"></h3>
         <div id="doc-props" class="stack"></div>
       </div>
     </aside>
@@ -83,10 +104,10 @@
   <div class="section-head"><div><h2 class="mt0" data-i18n="designer.output"></h2><p class="small" data-i18n="designer.output.hint"></p></div></div>
   <div class="card">
     <div class="tabs" data-group="output">
-      <button data-tab="cmd" class="active">Printer commands</button>
-      <button data-tab="hex">Hex</button>
-      <button data-tab="json">JSON</button>
-      <button data-tab="raster">Raster preview</button>
+      <button data-tab="cmd" class="active" data-i18n="designer.tab.cmd"></button>
+      <button data-tab="hex" data-i18n="designer.tab.hex"></button>
+      <button data-tab="json" data-i18n="designer.tab.json"></button>
+      <button data-tab="raster" data-i18n="designer.tab.raster"></button>
     </div>
     <div data-tabpanel="cmd" data-group="output"><pre id="out-cmd"></pre></div>
     <div data-tabpanel="hex" data-group="output" hidden><pre id="out-hex"></pre></div>

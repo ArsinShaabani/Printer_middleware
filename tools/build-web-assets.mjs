@@ -29,8 +29,16 @@ const MIME = {
   '.bin': 'application/octet-stream'
 };
 
+/*
+ * The device serves the *complete* control panel. The label designer and the
+ * maintenance console are the reason a user connects to the board over Wi-Fi,
+ * so they ship in every build - ESP32 and ESP8266 alike - together with the
+ * docs page (REST API, FAQ) and the installer/help page. `--min` keeps writing
+ * the ESP8266 header for the CI matrix; the asset set is identical, the size
+ * difference comes from gzip.
+ */
 const PAGES = ['index.html', 'install.html', 'designer.html', 'troubleshoot.html', 'docs.html'];
-const MIN_PAGES = ['index.html', 'install.html', 'troubleshoot.html'];
+const MIN_PAGES = PAGES;
 const CORE_JS = [
   'assets/js/core/catalog.js',
   'assets/js/core/wiring.js',
@@ -44,9 +52,11 @@ const CORE_JS = [
   'assets/js/ui/device.js',
   'assets/js/ui/home.js',
   'assets/js/ui/install.js',
-  'assets/js/ui/troubleshoot.js'
+  'assets/js/ui/designer.js',
+  'assets/js/ui/troubleshoot.js',
+  'assets/js/ui/docs.js'
 ];
-const MIN_JS = CORE_JS.filter((p) => !p.endsWith('designer.js'));
+const MIN_JS = CORE_JS;
 const DATA = ['data/boards.json', 'data/apps.json'];
 
 function parseArgs(argv) {
