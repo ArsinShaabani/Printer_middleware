@@ -205,7 +205,7 @@ function renderWiring() {
   const w = state.wiring;
   if (!w) return;
   $('#wiring-title').textContent = w.title;
-  $('#wiring-diagram').innerHTML = renderWiringSvg(w, state.board, state.app, { width: 960 });
+  $('#wiring-diagram').innerHTML = renderWiringSvg(w, state.board, state.app);
   $('#wiring-summary').innerHTML =
     '<strong>' + esc(transportName(w.transportId)) + '</strong><p class="small mb0">' + esc(w.summary || '') + '</p>' +
     (w.power ? '<p class="small mb0"><strong>' + esc(t('common.power')) + ':</strong> ' + esc(w.power) + '</p>' : '');

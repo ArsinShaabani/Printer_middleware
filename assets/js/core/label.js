@@ -258,7 +258,12 @@ function renderElementSvg(el, doc, dpi, opts) {
       const lh = Number(el.lineHeight) > 0 ? Number(el.lineHeight) : 1.2;
       const ls = el.letterSpacing ? ` letter-spacing="${Math.max(0, Math.round(mmToDots(el.letterSpacing, dpi)))}"` : '';
       const out = [];
-      if (el.reverse) out.push(`<rect x="${x}" y="${y}" width="${w || size * 8}" height="${size * lines.length * lh}" fill="#000000"/>`);
+      const blockW = w || size * 8;
+      const blockH = size * lines.length * lh;
+      if (el.border) {
+        out.push(`<rect x="${x}" y="${y}" width="${blockW}" height="${blockH}" fill="none" stroke="#000000" stroke-width="${Math.max(1, Math.round(size * 0.08))}"/>`);
+      }
+      if (el.reverse) out.push(`<rect x="${x}" y="${y}" width="${blockW}" height="${blockH}" fill="#000000"/>`);
       lines.forEach((line, i) => {
         out.push(
           `<text x="${tx}" y="${y + size * (i * lh + 1) - size * 0.15}" font-size="${size}" font-weight="${el.bold ? 'bold' : 'normal'}" ` +
@@ -285,7 +290,7 @@ function renderElementSvg(el, doc, dpi, opts) {
     case 'qrcode': {
       const qr = qrEncode(substituteVars(el.data, vars), { ecc: el.ecc || 'M' });
       const size = el.sizeMm ? mmToDots(el.sizeMm, dpi) : Math.min(w || h, h || w) || 100;
-      const quiet = 4;
+      const quiet = el.quietModules == null ? 4 : Math.max(0, Math.min(16, Math.round(Number(el.quietModules) || 0)));
       const mw = size / (qr.size + quiet * 2);
       let d = '';
       for (let r = 0; r < qr.size; r++) {
@@ -295,19 +300,41 @@ function renderElementSvg(el, doc, dpi, opts) {
     }
     case 'image': {
       if (!el.src) return '';
+      const rotate = Number(el.rotate) || 0;
+      const extra = rotate ? ` transform="rotate(${rotate} ${x + w / 2} ${y + h / 2})"` : '';
       return (
-        `<g${elementTransform(el, dpi)}><image href="${esc(el.src)}" xlink:href="${esc(el.src)}" x="${x}" y="${y}" width="${w}" height="${h}" ` +
-        `preserveAspectRatio="${esc(el.fit || 'xMidYMid meet')}" style="image-rendering:pixelated"/></g>`
+        `<g${elementTransform(el, dpi)}><g${extra}><image href="${esc(el.src)}" xlink:href="${esc(el.src)}" x="${x}" y="${y}" width="${w}" height="${h}" ` +
+        `preserveAspectRatio="${esc(el.fit || 'xMidYMid meet')}" style="image-rendering:pixelated"/></g></g>`
       );
     }
     case 'line': {
       const t = Math.max(1, mmToDots(el.thicknessMm || 0.4, dpi));
+      const len = el.w ? w : h;
+      if (el.style === 'dashed' || el.style === 'dotted') {
+        const seg = el.style === 'dotted' ? t : t * 3;
+        const gap = t * (el.style === 'dotted' ? 2 : 2.5);
+        const out = [];
+        if (el.w) {
+          for (let px = x; px < x + w; px += seg + gap) {
+            out.push(`<rect x="${px}" y="${y}" width="${Math.min(seg, x + w - px)}" height="${t}"/>`);
+          }
+        } else {
+          for (let py = y; py < y + h; py += seg + gap) {
+            out.push(`<rect x="${x}" y="${py}" width="${t}" height="${Math.min(seg, y + h - py)}"/>`);
+          }
+        }
+        return `<g fill="#000000">${out.join('')}</g>`;
+      }
       return `<rect x="${x}" y="${y}" width="${el.w ? w : t}" height="${el.h ? h : t}" fill="#000000"/>`;
     }
     case 'box': {
       const t = Math.max(1, mmToDots(el.thicknessMm || 0.4, dpi));
       const r = el.radiusMm ? Math.max(0, Math.round(mmToDots(el.radiusMm, dpi))) : 0;
       if (el.filled) return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="#000000"/>`;
+      if (el.style === 'dashed' || el.style === 'dotted') {
+        const dash = el.style === 'dotted' ? `${t} ${t * 1.5}` : `${t * 4} ${t * 3}`;
+        return `<rect x="${x + t / 2}" y="${y + t / 2}" width="${Math.max(0, w - t)}" height="${Math.max(0, h - t)}" rx="${r}" fill="none" stroke="#000000" stroke-width="${t}" stroke-dasharray="${dash}"/>`;
+      }
       if (r > 0) {
         return `<rect x="${x + t / 2}" y="${y + t / 2}" width="${Math.max(0, w - t)}" height="${Math.max(0, h - t)}" rx="${r}" fill="none" stroke="#000000" stroke-width="${t}"/>`;
       }

@@ -47,7 +47,7 @@ function renderWiringDoc() {
         el('span', { class: 'badge ' + (compat.ok ? 'ok' : 'warn'), text: compat.ok ? t('docs.card.compatible') : t('docs.card.check') })
       ]),
       el('p', { class: 'small', text: wiring.summary }),
-      el('div', { class: 'diagram mb2', html: renderWiringSvg(wiring, board, app, { width: 960 }) }),
+      el('div', { class: 'diagram mb2', html: renderWiringSvg(wiring, board, app) }),
       el('div', { class: 'table-wrap' }, [
         el('table', {}, [
           el('thead', {}, [el('tr', {}, [t('common.signal'), t('common.boardSide'), t('common.printerSide'), t('common.cable')])]),

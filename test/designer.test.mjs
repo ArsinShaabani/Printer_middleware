@@ -173,10 +173,10 @@ test('arrow keys nudge the selected element by the grid step', async () => {
 
 test('layers can be reordered, duplicated and locked', async () => {
   const { doc, click } = await loadDesigner();
-  const first = doc.querySelector('#el-list .el-item .type').textContent;
+  const first = doc.querySelector('#el-list .el-item').dataset.type;
   assert.equal(first, 'box', 'the box is on top by default');
   click(doc.querySelector('#el-list .el-item [title="Send backward"]'));
-  assert.notEqual(doc.querySelector('#el-list .el-item .type').textContent, 'box', 'the layer order changed');
+  assert.notEqual(doc.querySelector('#el-list .el-item').dataset.type, 'box', 'the layer order changed');
 
   click(doc.querySelector('#el-list .el-item'));
   click(doc.querySelector('#arrange [data-arrange="duplicate"]'));
@@ -211,11 +211,17 @@ test('the canvas drags and resizes elements with the values each type really ren
   click(doc.querySelectorAll('#el-list .el-item')[2]);
   assert.deepEqual(numbers().slice(0, 3), [4, 15, 30], 'the barcode starts at x=4, y=15, w=30');
 
-  // Drag the element 5 mm to the right and 2 mm down (grid snapping is 1 mm).
+  // Grid snapping off keeps the drag arithmetic exact (smart guides would pull
+  // the element onto another element's edge - that has its own test below).
+  const snap = doc.getElementById('snap-toggle');
+  snap.checked = false;
+  snap.dispatchEvent(new window.Event('change'));
+
+  // Drag the element 5 mm to the right and 2 mm down.
   svg.dispatchEvent(down(10, 18));
   svg.dispatchEvent(at(15, 20));
   svg.dispatchEvent(up());
-  assert.deepEqual(numbers().slice(0, 2), [9, 17], 'the drag moved the element by the snapped delta');
+  assert.deepEqual(numbers().slice(0, 2), [9, 17], 'the drag moved the element by the delta');
 
   // Resize from the south-east handle: +5 mm wide, +2.5 mm tall.
   svg.dispatchEvent(down(39, 26));
@@ -223,7 +229,7 @@ test('the canvas drags and resizes elements with the values each type really ren
   svg.dispatchEvent(up());
   const after = numbers();
   assert.equal(after[2], 35, 'the barcode width follows the resize handle');
-  assert.equal(after[3], 12, 'the barcode bar height follows the resize handle');
+  assert.equal(after[3], 11.5, 'the barcode bar height follows the resize handle (0.5 mm without snapping)');
 
   // A QR code is sized by sizeMm, so its handle must change that - not a stale w.
   click(doc.querySelectorAll('#el-list .el-item')[1]);
@@ -235,6 +241,68 @@ test('the canvas drags and resizes elements with the values each type really ren
   const qrAfter = numbers();
   assert.equal(qrAfter[2], 17, 'the QR size grows with the handle (sizeMm, not w)');
   assert.notDeepEqual(qrAfter, qrBefore, 'the QR properties changed');
+});
+
+test('the new element options reach the preview (dash style, text frame, quiet zone, image rotation)', async () => {
+  const { doc, window, click } = await loadDesigner();
+  const preview = () => doc.getElementById('preview').innerHTML;
+  const selectWithOption = (value) => [...doc.querySelectorAll('#props select')].find((s) => [...s.options].some((o) => o.value === value));
+  const layerOfType = (type) => [...doc.querySelectorAll('#el-list .el-item')].find((n) => n.dataset.type === type);
+
+  // Box: dashed outline.
+  click(layerOfType('box'));
+  const styleSelect = selectWithOption('dashed');
+  assert.ok(styleSelect, 'the box exposes a line style');
+  styleSelect.value = 'dashed';
+  styleSelect.dispatchEvent(new window.Event('change'));
+  assert.ok(preview().includes('stroke-dasharray'), 'a dashed box draws a dash pattern');
+
+  // Line: dotted.
+  click(doc.querySelector('[data-add="line"]'));
+  const lineStyle = selectWithOption('dotted');
+  lineStyle.value = 'dotted';
+  lineStyle.dispatchEvent(new window.Event('change'));
+  assert.ok(preview().includes('stroke-dasharray') || (preview().match(/<rect /g) || []).length > 3, 'a dotted line is drawn as segments');
+
+  // Text: frame around the text block.
+  click(layerOfType('text'));
+  const frame = [...doc.querySelectorAll('#props .checkline')].find((l) => /Frame/.test(l.textContent));
+  assert.ok(frame, 'the text exposes a frame option');
+  const box = frame.querySelector('input');
+  box.checked = true;
+  box.dispatchEvent(new window.Event('change'));
+  assert.ok(preview().includes('fill="none" stroke="#000000"'), 'the frame is drawn');
+
+  // QR: a wider quiet zone changes the module geometry.
+  click(layerOfType('qrcode'));
+  const before = preview();
+  const quietInput = [...doc.querySelectorAll('#props input[type=number]')].pop();
+  quietInput.value = '10';
+  quietInput.dispatchEvent(new window.Event('input'));
+  assert.notEqual(preview(), before, 'the QR quiet zone changes the preview');
+});
+
+test('smart guides snap a dragged element onto another element and draw the guide', async () => {
+  const { doc, window, click } = await loadDesigner();
+  const scale = 50 / 400;
+  const px = (mm) => Math.round(mm / scale);
+  const svg = doc.querySelector('#preview svg');
+  const down = (mmX, mmY) => new window.MouseEvent('pointerdown', { clientX: px(mmX), clientY: px(mmY), bubbles: true });
+  const at = (mmX, mmY) => new window.MouseEvent('pointermove', { clientX: px(mmX), clientY: px(mmY), bubbles: true });
+  const up = () => new window.MouseEvent('pointerup', { bubbles: true });
+  const xValue = () => Number(doc.querySelector('#props input[type=number]').value);
+
+  // Select the barcode (x=4, w=30 -> its right edge is at 34).
+  click(doc.querySelectorAll('#el-list .el-item')[2]);
+  // Grab it and move so the right edge lands just short of the QR centre (39.5):
+  // the guide must pull it onto exactly 39.5 (size 13 at x=33).
+  svg.dispatchEvent(down(10, 18));
+  svg.dispatchEvent(at(15.4, 18));
+  const guides = doc.querySelector('#preview .preview-overlay');
+  assert.ok(guides.innerHTML.includes('#ec4899'), 'a guide line is drawn while dragging');
+  svg.dispatchEvent(up());
+  assert.equal(xValue(), 9.5, 'the element snapped so its right edge meets the QR centre');
+  assert.ok(!doc.querySelector('#preview .preview-overlay').innerHTML.includes('#ec4899'), 'guides disappear after the drop');
 });
 
 test('the printer language selector re-renders the native output', async () => {

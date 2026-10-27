@@ -130,7 +130,7 @@ test('install.html renders the wizard, the wiring diagram and the flash panel', 
   const svg = svgHost.querySelector('svg');
   assert.ok(svg, 'wiring diagram svg');
   assert.equal(svg.namespaceURI, 'http://www.w3.org/2000/svg');
-  assert.equal(svg.getAttribute('viewBox'), '0 0 960 420');
+  assert.equal(svg.getAttribute('viewBox'), '0 0 900 492');
   assert.ok(!svgHost.innerHTML.includes('NaN'), 'no NaN in the diagram');
   const diagramText = svg.textContent;
   assert.match(diagramText, /TX: GPIO 17 \(TX2\) -> Printer RX/, 'the TX wire label is drawn');

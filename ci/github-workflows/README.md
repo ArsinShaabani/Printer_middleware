@@ -34,8 +34,9 @@ After that, enable **Settings → Pages → Source: GitHub Actions** once and th
 
 ## Important: the board-manager URLs
 
-`esp32:esp32` and `esp8266:esp8266` are **not** in the default Arduino index. Both firmware
-workflows therefore run
+`esp32:esp32` and `esp8266:esp8266` are **not** in the default Arduino index, so a plain
+`arduino-cli core install` on a workstation fails unless the URLs are registered first. Both
+firmware workflows therefore run
 
 ```yaml
 arduino-cli config init --overwrite || true
@@ -45,11 +46,21 @@ arduino-cli config add board_manager.additional_urls \
 arduino-cli core update-index
 ```
 
-before installing a core. If that step is missing, the core install fails, every compile is
-skipped (they are `continue-on-error`) and the run finishes with **no firmware binaries**:
-the site is published, but every board page says "not built yet". A healthy run lists the
-binaries under *Firmware binaries collected* in the job summary.
+before installing a core. GitHub's runner image already resolves `esp32:esp32` on its own, so this
+step is about determinism (other runners, other `arduino-cli` versions) rather than being the
+reason a build fails.
 
-If the workflows already exist in `.github/workflows/` on the default branch, remember that
-the automation token cannot update them - apply this change with an account/token that has
-the `workflows` permission (or run `node tools/install-workflows.mjs` and commit the result).
+**A green run does not mean the firmware was built.** The compile steps are `continue-on-error`,
+so a sketch that does not compile still ends with a green run - it simply uploads no artifacts.
+Always read the job summary: it must list the binaries under *Firmware binaries collected*.
+
+If the firmware is missing, open a *Compile …* job and look for `error:`. The fastest way to catch
+that class of problem before pushing is
+
+```bash
+npm run check:firmware   # includes firmware/tools/check-syntax.mjs
+```
+
+which compiles the core-independent translation units with your local C++ compiler against a small
+Arduino stub. (Balanced braces and resolvable includes are not enough: three real type errors
+slipped through `check-sources.mjs` and only appeared in CI.)

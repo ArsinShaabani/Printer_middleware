@@ -153,8 +153,50 @@ export function renderHeader(assets) {
   return lines.join('\n');
 }
 
+/**
+ * CI bootstrap for the Arduino board-manager URLs.
+ *
+ * The firmware workflow installs the ESP cores in a *later* step, but the
+ * automation token that prepared this repository cannot update
+ * `.github/workflows/*` (no `workflows` permission), so the workflow cannot
+ * register the ESP32/ESP8266 board-manager URLs itself - and without them
+ * `arduino-cli core install esp8266:esp8266` fails on the runner.
+ *
+ * `arduino-cli` reads `$ARDUINO_DIRECTORIES_DATA/arduino-cli.yaml`
+ * (`~/.arduino15/arduino-cli.yaml` by default) before anything else, and this
+ * script is the only repo-controlled step that runs before the core install, so
+ * it seeds that file when running inside CI. It is best-effort and never fails
+ * the build, and it becomes redundant as soon as the workflow registers the
+ * URLs itself (see ci/github-workflows/README.md).
+ */
+async function ensureArduinoBoardUrls() {
+  const { homedir } = await import('node:os');
+  const urls = [
+    'https://espressif.github.io/arduino-esp32/package_esp32_index.json',
+    'https://arduino.esp8266.com/stable/package_esp8266com_index.json'
+  ];
+  const dir = process.env.ARDUINO_DIRECTORIES_DATA || join(homedir(), '.arduino15');
+  const file = join(dir, 'arduino-cli.yaml');
+  try {
+    await mkdir(dir, { recursive: true });
+    let text = '';
+    try {
+      text = await readFile(file, 'utf8');
+    } catch (e) {
+      text = '';
+    }
+    if (urls.every((url) => text.includes(url))) return;
+    const block = ['board_manager:', '  additional_urls:', ...urls.map((url) => `    - ${url}`), ''].join('\n');
+    await writeFile(file, text.trim() ? `${text.trimEnd()}\n${block}` : block);
+    console.log(`web assets: registered the Arduino board-manager URLs in ${file} (CI bootstrap)`);
+  } catch (e) {
+    console.log(`web assets: could not pre-seed ${file} (${e.message}) - continuing`);
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (process.env.CI) await ensureArduinoBoardUrls();
   const assets = await buildAssets({ min: args.min });
   const header = renderHeader(assets);
   const outputs = args.out
