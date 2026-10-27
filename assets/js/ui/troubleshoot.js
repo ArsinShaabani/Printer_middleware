@@ -81,40 +81,41 @@ function kv(node, pairs) {
 function renderDashboard() {
   const s = state.status || {};
   const info = state.info || {};
+  const yes = (v) => (v ? t('common.yes', 'yes') : t('common.no', 'no'));
   kv($('#dash-status'), [
-    ['State', s.state],
-    ['Printer', (s.printer && s.printer.status) || '-'],
-    ['Printer connected', s.printer && s.printer.connected ? 'yes' : 'no'],
-    ['Last printer reply', s.printer && s.printer.lastReply],
-    ['Queue depth', s.queue && s.queue.depth],
-    ['Last job', s.queue && s.queue.lastJobId],
-    ['Uptime', info.uptimeMs ? Math.round(info.uptimeMs / 1000) + ' s' : '-'],
-    ['Free heap', info.freeHeap ? Math.round(info.freeHeap / 1024) + ' kB' : '-'],
-    ['Version', (info.version || '') + ' ' + (info.build || '')],
-    ['Board / app', (info.board || '') + ' / ' + (info.app || '')],
-    ['Transport', info.transport],
-    ['Language', info.language]
+    [t('tdash.state', 'State'), s.state],
+    [t('tdash.printer', 'Printer'), (s.printer && s.printer.status) || '-'],
+    [t('tdash.printerConnected', 'Printer connected'), yes(s.printer && s.printer.connected)],
+    [t('tdash.lastReply', 'Last printer reply'), s.printer && s.printer.lastReply],
+    [t('tdash.queue', 'Queue depth'), s.queue && s.queue.depth],
+    [t('tdash.lastJob', 'Last job'), s.queue && s.queue.lastJobId],
+    [t('tdash.uptime', 'Uptime'), info.uptimeMs ? Math.round(info.uptimeMs / 1000) + ' s' : '-'],
+    [t('tdash.heap', 'Free heap'), info.freeHeap ? Math.round(info.freeHeap / 1024) + ' kB' : '-'],
+    [t('tdash.version', 'Version'), (info.version || '') + ' ' + (info.build || '')],
+    [t('tdash.boardApp', 'Board / app'), (info.board || '') + ' / ' + (info.app || '')],
+    [t('tdash.transport', 'Transport'), info.transport],
+    [t('tdash.language', 'Language'), info.language]
   ]);
   kv($('#dash-counters'), [
-    ['Jobs', s.counters && s.counters.jobs],
-    ['Bytes', s.counters && s.counters.bytes],
-    ['Errors', s.counters && s.counters.errors]
+    [t('tdash.jobs', 'Jobs'), s.counters && s.counters.jobs],
+    [t('tdash.bytes', 'Bytes'), s.counters && s.counters.bytes],
+    [t('tdash.errors', 'Errors'), s.counters && s.counters.errors]
   ]);
   kv($('#dash-wifi'), [
-    ['Mode', (s.wifi && s.wifi.mode) || info.wifiMode],
-    ['SSID', s.wifi && s.wifi.ssid],
-    ['IP', s.wifi && s.wifi.ip],
-    ['RSSI', s.wifi && s.wifi.rssi != null ? s.wifi.rssi + ' dBm' : '-'],
-    ['mDNS', info.mdns],
-    ['Hostname', info.hostname]
+    [t('tdash.mode', 'Mode'), (s.wifi && s.wifi.mode) || info.wifiMode],
+    [t('tdash.ssid', 'SSID'), s.wifi && s.wifi.ssid],
+    [t('tdash.ip', 'IP'), s.wifi && s.wifi.ip],
+    [t('tdash.rssi', 'RSSI'), s.wifi && s.wifi.rssi != null ? s.wifi.rssi + ' dBm' : '-'],
+    [t('tdash.mdns', 'mDNS'), info.mdns],
+    [t('tdash.hostname', 'Hostname'), info.hostname]
   ]);
   kv($('#dash-io'), [
-    ['Bluetooth enabled', s.bt && s.bt.enabled ? 'yes' : 'no'],
-    ['Bluetooth connected', s.bt && s.bt.connected ? 'yes' : 'no'],
-    ['Bluetooth name', s.bt && s.bt.name],
-    ['USB connected', s.usb && s.usb.connected ? 'yes' : 'no'],
-    ['USB VID/PID', s.usb ? (s.usb.vid || '') + ' / ' + (s.usb.pid || '') : '-'],
-    ['USB device', s.usb ? (s.usb.manufacturer || '') + ' ' + (s.usb.product || '') : '-']
+    [t('tdash.btEnabled', 'Bluetooth enabled'), yes(s.bt && s.bt.enabled)],
+    [t('tdash.btConnected', 'Bluetooth connected'), yes(s.bt && s.bt.connected)],
+    [t('tdash.btName', 'Bluetooth name'), s.bt && s.bt.name],
+    [t('tdash.usbConnected', 'USB connected'), yes(s.usb && s.usb.connected)],
+    [t('tdash.usbIds', 'USB VID/PID'), s.usb ? (s.usb.vid || '') + ' / ' + (s.usb.pid || '') : '-'],
+    [t('tdash.usbDevice', 'USB device'), s.usb ? (s.usb.manufacturer || '') + ' ' + (s.usb.product || '') : '-']
   ]);
 }
 

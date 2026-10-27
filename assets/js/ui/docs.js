@@ -1,5 +1,5 @@
 /** Documentation page: wiring library, language reference, API and FAQ. */
-import { initShell, loadCatalog, $, el, esc, t, download, copyText, onChange } from './shell.js';
+import { initShell, loadCatalog, $, el, esc, t, download, copyText, onChange, getLanguage } from './shell.js';
 import { resolveWiring, boardsForApp, compatibility } from '../core/catalog.js';
 import { renderWiringSvg, wiringToText } from '../core/wiring.js';
 import { LANGUAGES, ACTIONS, actionsForLanguage, buildCommand } from '../core/commands.js';
@@ -44,13 +44,13 @@ function renderWiringDoc() {
     const card = el('div', { class: 'card mb2' }, [
       el('div', { class: 'spread' }, [
         el('h3', { class: 'mb0', text: wiring.title }),
-        el('span', { class: 'badge ' + (compat.ok ? 'ok' : 'warn'), text: compat.ok ? 'compatible' : 'check requirements' })
+        el('span', { class: 'badge ' + (compat.ok ? 'ok' : 'warn'), text: compat.ok ? t('docs.card.compatible') : t('docs.card.check') })
       ]),
       el('p', { class: 'small', text: wiring.summary }),
       el('div', { class: 'diagram mb2', html: renderWiringSvg(wiring, board, app, { width: 960 }) }),
       el('div', { class: 'table-wrap' }, [
         el('table', {}, [
-          el('thead', {}, [el('tr', {}, [t('common.signal'), t('common.boardSide'), t('common.printerSide'), 'Cable'])]),
+          el('thead', {}, [el('tr', {}, [t('common.signal'), t('common.boardSide'), t('common.printerSide'), t('common.cable')])]),
           el('tbody', {}, wiring.links.map((l) => el('tr', {}, [
             el('td', { text: l.signal }), el('td', { class: 'mono', text: l.board }), el('td', { class: 'mono', text: l.printer }), el('td', { class: 'small', text: l.cable })
           ])))
@@ -73,10 +73,10 @@ function renderWiringDoc() {
 function renderLanguages() {
   const host = $('#languages-doc');
   host.innerHTML = '';
-  host.append(el('p', { class: 'small', text: 'Arsin Print Server speaks the command set of your printer. Native commands are used where the language supports them; everything else is printed as a raster image, which works on any printer that accepts graphics.' }));
+  host.append(el('p', { class: 'small', text: t('docs.lang.lead') }));
   const table = el('div', { class: 'table-wrap' }, [
     el('table', {}, [
-      el('thead', {}, [el('tr', {}, ['Language', 'Vendor', 'Device type', 'DPI', 'Charsets', 'Actions'])]),
+      el('thead', {}, [el('tr', {}, [t('docs.lang.h.language'), t('docs.lang.h.vendor'), t('docs.lang.h.type'), t('docs.lang.h.dpi'), t('docs.lang.h.charsets'), t('docs.lang.h.actions')])]),
       el('tbody', {}, LANGUAGES.map((l) => {
         const supported = actionsForLanguage(l.id).filter((a) => a.supported).length;
         return el('tr', {}, [
@@ -92,10 +92,10 @@ function renderLanguages() {
   ]);
   host.append(table);
 
-  host.append(el('h3', { class: 'mt3', text: 'Maintenance & troubleshooting actions' }));
+  host.append(el('h3', { class: 'mt3', text: t('docs.lang.actions.title') }));
   const actionTable = el('div', { class: 'table-wrap' }, [
     el('table', {}, [
-      el('thead', {}, [el('tr', {}, ['Action', 'Group', 'What it does', 'Example (ESC/POS)'])]),
+      el('thead', {}, [el('tr', {}, [t('docs.lang.h.action'), t('docs.lang.h.group'), t('docs.lang.h.what'), t('docs.lang.h.example')])]),
       el('tbody', {}, ACTIONS.map((a) => {
         let hex = '';
         try {
@@ -114,9 +114,9 @@ function renderLanguages() {
   ]);
   host.append(actionTable);
 
-  host.append(el('h3', { class: 'mt3', text: 'Barcode symbologies' }));
+  host.append(el('h3', { class: 'mt3', text: t('docs.lang.sym.title') }));
   host.append(el('div', { class: 'table-wrap' }, [el('table', {}, [
-    el('thead', {}, [el('tr', {}, ['Symbology', 'Type', 'Characters'])]),
+    el('thead', {}, [el('tr', {}, [t('docs.lang.h.symbology'), t('docs.lang.h.kind'), t('docs.lang.h.characters')])]),
     el('tbody', {}, SYMBOLOGIES.map((s) => el('tr', {}, [el('td', { text: s.name }), el('td', { class: 'small', text: s.kind }), el('td', { class: 'small mono', text: s.chars })])))
   ])]));
 }
@@ -147,15 +147,15 @@ function renderApi() {
   const host = $('#api-doc');
   host.innerHTML = '';
   host.append(el('div', { class: 'callout info' }, [
-    el('strong', { text: 'One API, three platforms' }),
-    el('p', { class: 'small mb0', text: 'The ESP32, ESP8266 and Raspberry Pi builds expose the same REST API, so the same web app, the same scripts and the same monitoring work everywhere. Every /api response carries CORS headers so the hosted web app can drive a device on your LAN.' })
+    el('strong', { text: t('docs.api.one.t') }),
+    el('p', { class: 'small mb0', text: t('docs.api.one.d') })
   ]));
   host.append(el('div', { class: 'table-wrap' }, [el('table', {}, [
-    el('thead', {}, [el('tr', {}, ['Method', 'Endpoint', 'Description'].map((h) => el('th', { text: h })))]),
+    el('thead', {}, [el('tr', {}, [t('docs.api.h.method'), t('docs.api.h.endpoint'), t('docs.api.h.description')].map((h) => el('th', { text: h })))]),
     el('tbody', {}, API_ROWS.map((r) => el('tr', {}, [el('td', { class: 'mono small', text: r[0] }), el('td', { class: 'mono small', text: r[1] }), el('td', { class: 'small', text: r[2] })])))
   ])]));
 
-  host.append(el('h3', { class: 'mt3', text: 'Examples' }));
+  host.append(el('h3', { class: 'mt3', text: t('docs.api.examples') }));
   host.append(el('pre', { text: [
     '# health check',
     'curl http://arsin_print_server.local/api/health',
@@ -213,31 +213,31 @@ const BOARD_EXAMPLE = {
 function renderBoardsDoc() {
   const host = $('#boards-doc');
   host.innerHTML = '';
-  host.append(el('p', { class: 'small', text: 'New boards are data, not code. Add an entry to data/boards.json in a pull request, or paste one into the Add board dialog on the install page - it is stored in your browser and immediately available in the wizard.' }));
-  host.append(el('h3', { text: 'Pin roles' }));
+  host.append(el('p', { class: 'small', text: t('docs.boards.lead') }));
+  host.append(el('h3', { text: t('docs.boards.roles') }));
   host.append(el('div', { class: 'table-wrap' }, [el('table', {}, [
-    el('thead', {}, [el('tr', {}, ['Role', 'Used for'])]),
+    el('thead', {}, [el('tr', {}, [t('docs.boards.h.role'), t('docs.boards.h.used')])]),
     el('tbody', {}, [
-      ['uartTx', 'Board transmit line to the printer (TX2/TX0/D8 ...)'],
-      ['uartRx', 'Board receive line from the printer, used for status and flow control'],
-      ['uartTxAlt / uartRxAlt', 'Secondary UART (for example UART0 on ESP32 boards)'],
-      ['usbDp / usbDm', 'USB data lines when the board acts as USB host'],
-      ['usb5v / usbGnd', 'USB VBUS and ground for the USB host path'],
-      ['v5 / v3v3 / gnd', 'Power and ground rails'],
-      ['led / btn', 'Status LED and button'],
-      ['spare1 / spare2', 'Optional extras: DTR/CTS flow control, strobe, RTS']
-    ].map((r) => el('tr', {}, [el('td', { class: 'mono', text: '@' + r[0] }), el('td', { class: 'small', text: r[1] })])))
+      ['uartTx', 'docs.boards.role.uartTx'],
+      ['uartRx', 'docs.boards.role.uartRx'],
+      ['uartTxAlt / uartRxAlt', 'docs.boards.role.uartAlt'],
+      ['usbDp / usbDm', 'docs.boards.role.usbData'],
+      ['usb5v / usbGnd', 'docs.boards.role.usbPower'],
+      ['v5 / v3v3 / gnd', 'docs.boards.role.power'],
+      ['led / btn', 'docs.boards.role.led'],
+      ['spare1 / spare2', 'docs.boards.role.spare']
+    ].map((r) => el('tr', {}, [el('td', { class: 'mono', text: '@' + r[0] }), el('td', { class: 'small', text: t(r[1]) })])))
   ])]));
-  host.append(el('h3', { class: 'mt3', text: 'Example board entry' }));
+  host.append(el('h3', { class: 'mt3', text: t('docs.boards.example') }));
   host.append(el('pre', { text: JSON.stringify(BOARD_EXAMPLE, null, 2) }));
   host.append(el('div', { class: 'row' }, [
-    el('button', { class: 'btn small', text: 'Copy the example', onclick: () => copyText(JSON.stringify(BOARD_EXAMPLE, null, 2)) }),
-    el('button', { class: 'btn small ghost', text: 'Download it', onclick: () => download('my-board-01.json', JSON.stringify(BOARD_EXAMPLE, null, 2), 'application/json') }),
-    el('a', { class: 'btn small primary', href: 'install.html', text: 'Import it in the wizard' })
+    el('button', { class: 'btn small', text: t('docs.boards.copy'), onclick: () => copyText(JSON.stringify(BOARD_EXAMPLE, null, 2)) }),
+    el('button', { class: 'btn small ghost', text: t('docs.boards.download'), onclick: () => download('my-board-01.json', JSON.stringify(BOARD_EXAMPLE, null, 2), 'application/json') }),
+    el('a', { class: 'btn small primary', href: 'install.html', text: t('docs.boards.import') })
   ]));
   host.append(el('div', { class: 'callout info mt2' }, [
-    el('strong', { text: 'How compatibility works' }),
-    el('p', { class: 'small mb0', text: 'An application declares required families and radios (for example Bluetooth Classic for the SPP build). The wizard greys out boards that cannot run it and explains exactly why, using the pin roles above - a missing pin role means the wiring cannot be generated.' })
+    el('strong', { text: t('docs.boards.compat.t') }),
+    el('p', { class: 'small mb0', text: t('docs.boards.compat.d') })
   ]));
 }
 
@@ -248,7 +248,7 @@ function renderBuild() {
   host.innerHTML = '';
   const card = el('div', { class: 'grid cols-2' });
   card.append(el('div', { class: 'card' }, [
-    el('h3', { text: 'Firmware (arduino-cli)' }),
+    el('h3', { text: t('docs.build.firmware') }),
     el('pre', { text: [
       '# the ESP cores are NOT in the default Arduino index - register the',
       '# board-manager URLs first, otherwise every core install fails',
@@ -277,44 +277,62 @@ function renderBuild() {
     ].join('\n') })
   ]));
   card.append(el('div', { class: 'card' }, [
-    el('h3', { text: 'Web app + manifests' }),
+    el('h3', { text: t('docs.build.web') }),
     el('pre', { text: [
       'npm install',
       'npm test                 # unit tests (barcode/QR/label/wiring/catalog)',
       'npm run validate         # catalog schema validation',
+      'npm run check:firmware   # firmware source + embedded asset checks',
       'npm run build            # web assets + firmware manifests',
       'npm run serve            # local preview on http://localhost:8080'
     ].join('\n') }),
-    el('p', { class: 'small muted', text: 'npm run build generates the firmware web asset header and manifests/index.json used by the browser installer. GitHub Actions runs the same commands, compiles every board/variant pair and publishes the site to GitHub Pages.' })
+    el('p', { class: 'small muted', text: t('docs.build.web.hint') })
   ]));
   host.append(card);
   host.append(el('div', { class: 'callout info mt2' }, [
-    el('strong', { text: 'Raspberry Pi' }),
-    el('p', { class: 'small mb0', text: 'Flash Raspberry Pi OS Lite, then run firmware/raspberrypi/install.sh. It installs the Python service, systemd unit, mDNS advertisement and optionally CUPS with IPP/AirPrint sharing.' })
+    el('strong', { text: t('docs.build.rpi') }),
+    el('p', { class: 'small mb0', text: t('docs.build.rpi.d') })
   ]));
 }
 
 /* -------------------------------------------------------------- FAQ */
 
-const FAQ = [
-  ['The board is not detected in the browser', 'Use a Chromium-based browser over HTTPS or localhost, a data-capable USB cable (many are charge-only) and the right driver (CP210x, CH34x, FTDI). Hold BOOT, tap RESET, release BOOT to force the bootloader, then retry.'],
-  ['Nothing prints / garbage characters', 'Baud rate mismatch or wrong logic levels. Try 9600/19200/38400/115200 in the maintenance page and make sure the printer is 3.3V TTL or level shifted. Garbage output is almost always a baud or level problem.'],
-  ['Printer prints only the first job', 'Flow control. Enable RTS/CTS in the configuration if your printer exposes BUSY/DTR, or lower the baud rate so the buffer cannot overrun.'],
-  ['The device IP keeps changing', 'Give the board a DHCP reservation in your router, or set a static IP in Configuration > Network. mDNS arsin_print_server.local works without a fixed IP on most networks.'],
-  ['Labels print shifted or half missing', 'Calibrate the media (Maintenance > Media calibration) and check the media type (gap / black mark / continuous) plus the label length in the designer. For ZPL also run ~JC.'],
-  ['USB printer not detected', 'Only ESP32-S3/S2 and Raspberry Pi have USB host. Use a powered hub and a short cable; laser printers that need a proprietary driver must use the Raspberry Pi + CUPS build.'],
-  ['Inkjet prints nothing / banding', 'Run the nozzle check and head cleaning from the maintenance page (ESC/P builds), then print a status sheet. Deep clogs usually need the vendor utility - the bridge cannot force a service-level cleaning cycle on every model.'],
-  ['I need AirPrint / IPP Everywhere', 'Use the Raspberry Pi CUPS build: it installs CUPS, shares the printer over IPP and exposes the Arsin web app on top.'],
-  ['How do I update the firmware later?', 'Upload the new .bin on the Firmware & backup tab (OTA) - no cable needed. The same tab can back up and restore the whole configuration.'],
-  ['Can several printers share one board?', 'One printer per board is the supported configuration; a Raspberry Pi 4/5 can run several printers at once through CUPS.'],
-  ['Does it work without internet?', 'Yes. Everything runs locally; only the OTA download and NTP need the internet.'],
-  ['Is my print data private?', 'Yes: data goes from your app to the board and out to the printer. Nothing is sent to a cloud service. Optional webhooks only fire if you configure them.']
-];
+const FAQ = {
+  en: [
+    ['The board is not detected in the browser', 'Use a Chromium-based browser over HTTPS or localhost, a data-capable USB cable (many are charge-only) and the right driver (CP210x, CH34x, FTDI). Hold BOOT, tap RESET, release BOOT to force the bootloader, then retry.'],
+    ['Nothing prints / garbage characters', 'Baud rate mismatch or wrong logic levels. Try 9600/19200/38400/115200 in the maintenance page and make sure the printer is 3.3V TTL or level shifted. Garbage output is almost always a baud or level problem.'],
+    ['Printer prints only the first job', 'Flow control. Enable RTS/CTS in the configuration if your printer exposes BUSY/DTR, or lower the baud rate so the buffer cannot overrun.'],
+    ['The device IP keeps changing', 'Give the board a DHCP reservation in your router, or set a static IP in Configuration > Network. mDNS arsin_print_server.local works without a fixed IP on most networks.'],
+    ['Labels print shifted or half missing', 'Calibrate the media (Maintenance > Media calibration) and check the media type (gap / black mark / continuous) plus the label length in the designer. For ZPL also run ~JC.'],
+    ['USB printer not detected', 'Only ESP32-S3/S2 and Raspberry Pi have USB host. Use a powered hub and a short cable; laser printers that need a proprietary driver must use the Raspberry Pi + CUPS build.'],
+    ['Inkjet prints nothing / banding', 'Run the nozzle check and head cleaning from the maintenance page (ESC/P builds), then print a status sheet. Deep clogs usually need the vendor utility - the bridge cannot force a service-level cleaning cycle on every model.'],
+    ['I need AirPrint / IPP Everywhere', 'Use the Raspberry Pi CUPS build: it installs CUPS, shares the printer over IPP and exposes the Arsin web app on top.'],
+    ['How do I update the firmware later?', 'Upload the new .bin on the Firmware & backup tab (OTA) - no cable needed. The same tab can back up and restore the whole configuration.'],
+    ['Can several printers share one board?', 'One printer per board is the supported configuration; a Raspberry Pi 4/5 can run several printers at once through CUPS.'],
+    ['Does it work without internet?', 'Yes. Everything runs locally; only the OTA download and NTP need the internet.'],
+    ['Is my print data private?', 'Yes: data goes from your app to the board and out to the printer. Nothing is sent to a cloud service. Optional webhooks only fire if you configure them.']
+  ],
+  fa: [
+    ['برد در مرورگر شناسایی نمی‌شود', 'از یک مرورگر کرومیوم روی HTTPS یا localhost، یک کابل USB داده‌دار (بسیاری از کابل‌ها فقط شارژ هستند) و درایور درست (CP210x، CH34x، FTDI) استفاده کنید. دکمه BOOT را نگه دارید، RESET را بزنید، BOOT را رها کنید تا بوت‌لودر اجباری شود و دوباره امتحان کنید.'],
+    ['چیزی چاپ نمی‌شود / کاراکترهای نامفهوم چاپ می‌شود', 'ناهماهنگی نرخ باد یا سطح منطقی اشتباه. در صفحه سرویس نرخ‌های ۹۶۰۰/۱۹۲۰۰/۳۸۴۰۰/۱۱۵۲۰۰ را امتحان کنید و مطمئن شوید پرینتر ۳.۳ ولت TTL است یا سطح آن تبدیل شده. خروجی نامفهوم تقریباً همیشه مشکل باد یا سطح ولتاژ است.'],
+    ['پرینتر فقط اولین کار را چاپ می‌کند', 'مشکل کنترل جریان است. اگر پرینتر شما BUSY/DTR دارد RTS/CTS را در تنظیمات فعال کنید یا نرخ باد را کم کنید تا بافر سرریز نکند.'],
+    ['آی‌پی دستگاه مدام عوض می‌شود', 'در روتر برای برد رزرو DHCP بگذارید یا در تنظیمات > شبکه آی‌پی ثابت تعیین کنید. در بیشتر شبکه‌ها mDNS با نام arsin_print_server.local بدون آی‌پی ثابت هم کار می‌کند.'],
+    ['لیبل جابه‌جا یا ناقص چاپ می‌شود', 'کاغذ را کالیبره کنید (سرویس > کالیبراسیون کاغذ) و نوع کاغذ (فاصله‌دار / لکه سیاه / پیوسته) و طول لیبل را در طراحی بررسی کنید. برای ZPL دستور ~JC را هم اجرا کنید.'],
+    ['پرینتر USB شناسایی نمی‌شود', 'فقط ESP32-S3/S2 و رزبری‌پای میزبان USB دارند. از هاب با تغذیه مستقل و کابل کوتاه استفاده کنید؛ پرینترهای لیزری که درایور اختصاصی می‌خواهند باید با نسخه رزبری‌پای + CUPS کار کنند.'],
+    ['جوهرافشان چیزی چاپ نمی‌کند یا خط می‌اندازد', 'از صفحه سرویس تست نازل و تمیزکاری هد را اجرا کنید (نسخه‌های ESC/P) و سپس صفحه وضعیت را چاپ کنید. گرفتگی‌های شدید معمولاً به ابزار خود سازنده نیاز دارد؛ پل نمی‌تواند روی همه مدل‌ها چرخه تمیزکاری سطح سرویس را اجباری کند.'],
+    ['به AirPrint / IPP Everywhere نیاز دارم', 'از نسخه رزبری‌پای + CUPS استفاده کنید: CUPS را نصب می‌کند، پرینتر را با IPP به اشتراک می‌گذارد و اپ وب آرسین را هم روی آن ارائه می‌دهد.'],
+    ['بعداً چطور فرم‌ور را به‌روزرسانی کنم؟', 'فایل .bin جدید را در زبانه «فرم‌ور و پشتیبان» بارگذاری کنید (OTA) - نیازی به کابل نیست. همان زبانه می‌تواند کل تنظیمات را پشتیبان‌گیری و بازگردانی کند.'],
+    ['می‌شود چند پرینتر از یک برد استفاده کنند؟', 'یک پرینتر برای هر برد حالت پشتیبانی‌شده است؛ رزبری‌پای ۴/۵ می‌تواند با CUPS همزمان چند پرینتر را اداره کند.'],
+    ['بدون اینترنت هم کار می‌کند؟', 'بله. همه‌چیز به‌صورت محلی اجرا می‌شود؛ فقط دانلود OTA و تنظیم زمان (NTP) به اینترنت نیاز دارند.'],
+    ['داده‌های چاپ من خصوصی می‌ماند؟', 'بله: داده از برنامه شما به برد و از آن به پرینتر می‌رود. هیچ‌چیز به سرویس ابری فرستاده نمی‌شود. وبهوک‌ها فقط اگر خودتان تنظیم کنید اجرا می‌شوند.']
+  ]
+};
 
 function renderFaq() {
   const host = $('#faq-doc');
   host.innerHTML = '';
-  for (const [q, a] of FAQ) {
+  const list = FAQ[getLanguage()] || FAQ.en;
+  for (const [q, a] of list) {
     host.append(el('details', { class: 'card mb2' }, [el('summary', { text: q }), el('p', { class: 'small mb0 mt1', text: a })]));
   }
 }
