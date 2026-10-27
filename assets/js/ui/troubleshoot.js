@@ -4,7 +4,7 @@
  */
 import { initShell, $, $$, el, esc, t, toast, download, copyText, store, clamp, openModal, confirmDialog } from './shell.js';
 import { ACTIONS, LANGUAGES, LANGUAGE_BY_ID, actionsForLanguage, buildCommand, parseRawInput, toHex, toAscii } from '../core/commands.js';
-import { Device, DemoDevice, normalizeBase, demoConfig } from './device.js';
+import { Device, DemoDevice, normalizeBase, demoConfig, detectLocalDevice, localDeviceBase } from './device.js';
 
 initShell();
 
@@ -539,6 +539,24 @@ function wireWifi() {
   $('#dev-connect').addEventListener('click', () => connect(false));
   $('#dev-demo').addEventListener('click', () => connect(true));
   $('#auto-refresh').dispatchEvent(new Event('change'));
-  if (saved.host) connect(false);
-  else connect(true);
+  // When the page is served by the board itself the device address is the
+  // current origin - connect straight away instead of asking for an IP.
+  detectLocalDevice().then((local) => {
+    if (local) {
+      const base = localDeviceBase();
+      $('#dev-host').value = base;
+      store.set('session', { host: base, apiKey: saved.apiKey || '' });
+      const banner = $('#device-banner');
+      if (banner) {
+        banner.hidden = false;
+        banner.innerHTML = '';
+        banner.append(el('span', { text: t('troubleshoot.servedByDevice', 'This page is served by the device itself - it is already connected.') }));
+      }
+      connect(false);
+    } else if (saved.host) {
+      connect(false);
+    } else {
+      connect(true);
+    }
+  });
 })();

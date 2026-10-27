@@ -7,6 +7,9 @@
 <title>Maintenance &amp; troubleshooting - Arsin Print Server</title>
 <meta name="description" content="Self test, calibration, head cleaning, nozzle check, counter reset, raw command console, configuration and live status for your Arsin print server.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
@@ -19,6 +22,8 @@
       <p class="small" data-i18n="troubleshoot.subtitle"></p>
     </div>
   </div>
+
+  <div id="device-banner" class="callout ok" hidden></div>
 
   <div class="card mb2">
     <div class="grid cols-2">
@@ -36,26 +41,26 @@
       <button id="dev-connect" class="primary" data-i18n="action.connect"></button>
       <button id="dev-demo" class="btn ghost" data-i18n="device.demo"></button>
       <span class="badge" id="dev-state" data-i18n="device.offline"></span>
-      <label class="switch small"><input id="auto-refresh" type="checkbox" checked> auto refresh (5s)</label>
+      <label class="switch small"><input id="auto-refresh" type="checkbox" checked> <span data-i18n="troubleshoot.autorefresh"></span></label>
       <span class="small muted" id="dev-last"></span>
     </div>
   </div>
 
   <div class="tabs" data-group="maint">
-    <button data-tab="dashboard" class="active">Dashboard</button>
+    <button data-tab="dashboard" class="active" data-i18n="troubleshoot.tab.dashboard"></button>
     <button data-tab="maintenance" data-i18n="troubleshoot.group.maintenance"></button>
     <button data-tab="console" data-i18n="troubleshoot.console"></button>
-    <button data-tab="config">Configuration</button>
+    <button data-tab="config" data-i18n="troubleshoot.tab.config"></button>
     <button data-tab="logs" data-i18n="troubleshoot.logs"></button>
-    <button data-tab="firmware">Firmware &amp; backup</button>
+    <button data-tab="firmware" data-i18n="troubleshoot.tab.firmware"></button>
   </div>
 
   <div data-tabpanel="dashboard" data-group="maint">
     <div class="grid cols-2">
-      <div class="card"><h3>Status</h3><dl class="kv" id="dash-status"></dl></div>
-      <div class="card"><h3>Counters</h3><dl class="kv" id="dash-counters"></dl><button id="reset-counters" class="btn small mt2">Reset bridge counters</button></div>
-      <div class="card"><h3>Wi-Fi</h3><dl class="kv" id="dash-wifi"></dl><button id="wifi-scan" class="btn small mt2">Scan networks</button><div id="wifi-list" class="mt2"></div></div>
-      <div class="card"><h3>Bluetooth &amp; USB</h3><dl class="kv" id="dash-io"></dl></div>
+      <div class="card"><h3 data-i18n="troubleshoot.card.status"></h3><dl class="kv" id="dash-status"></dl></div>
+      <div class="card"><h3 data-i18n="troubleshoot.card.counters"></h3><dl class="kv" id="dash-counters"></dl><button id="reset-counters" class="btn small mt2" data-i18n="troubleshoot.reset.counters"></button></div>
+      <div class="card"><h3 data-i18n="troubleshoot.card.wifi"></h3><dl class="kv" id="dash-wifi"></dl><button id="wifi-scan" class="btn small mt2" data-i18n="troubleshoot.scan"></button><div id="wifi-list" class="mt2"></div></div>
+      <div class="card"><h3 data-i18n="troubleshoot.card.io"></h3><dl class="kv" id="dash-io"></dl></div>
     </div>
   </div>
 
@@ -66,7 +71,7 @@
     </div>
     <div id="maint-grid" class="grid cols-3"></div>
     <div class="card mt2">
-      <h3>Generated command</h3>
+      <h3 data-i18n="troubleshoot.generated"></h3>
       <pre id="maint-preview">Select an action...</pre>
     </div>
   </div>
@@ -77,11 +82,15 @@
       <p class="small" data-i18n="troubleshoot.console.hint"></p>
       <textarea id="console-input" rows="4" spellcheck="false" placeholder="1B 40 1D 56 00"></textarea>
       <div class="row mt1">
-        <select id="console-mode" style="max-width:160px"><option value="auto">Auto detect</option><option value="hex">Hex</option><option value="text">Text with escapes</option></select>
+        <select id="console-mode" style="max-width:200px">
+          <option value="auto" data-i18n="troubleshoot.console.auto"></option>
+          <option value="hex" data-i18n="troubleshoot.console.hex"></option>
+          <option value="text" data-i18n="troubleshoot.console.text"></option>
+        </select>
         <button id="console-send" class="primary" data-i18n="action.send"></button>
-        <button id="console-clear" class="btn ghost">Clear</button>
+        <button id="console-clear" class="btn ghost" data-i18n="troubleshoot.console.clear"></button>
         <button id="console-save" class="btn ghost" data-i18n="action.download"></button>
-        <label class="switch small"><input id="console-echo" type="checkbox" checked> echo locally</label>
+        <label class="switch small"><input id="console-echo" type="checkbox" checked> <span data-i18n="troubleshoot.console.echo"></span></label>
       </div>
       <div id="console-out" class="console-out mt2"></div>
       <div class="row mt2">
@@ -98,14 +107,14 @@
   <div data-tabpanel="config" data-group="maint" hidden>
     <div class="card">
       <div class="spread mb2">
-        <h3 class="mb0">Device configuration</h3>
+        <h3 class="mb0" data-i18n="troubleshoot.config.title"></h3>
         <div class="row tight">
           <button id="cfg-reload" class="btn small" data-i18n="action.refresh"></button>
           <button id="cfg-save" class="btn small primary" data-i18n="action.save"></button>
         </div>
       </div>
       <div id="cfg-form" class="grid cols-2"></div>
-      <div id="cfg-raw-host" class="mt2"><details><summary>Raw JSON</summary><pre id="cfg-raw"></pre></details></div>
+      <div id="cfg-raw-host" class="mt2"><details><summary data-i18n="troubleshoot.config.raw"></summary><pre id="cfg-raw"></pre></details></div>
     </div>
   </div>
 
@@ -119,15 +128,15 @@
   <div data-tabpanel="firmware" data-group="maint" hidden>
     <div class="grid cols-2">
       <div class="card">
-        <h3>Firmware update (OTA)</h3>
-        <p class="small">Upload a compiled .bin (ESP32/ESP8266). The device validates the image and reboots.</p>
+        <h3 data-i18n="troubleshoot.ota.title"></h3>
+        <p class="small" data-i18n="troubleshoot.ota.hint"></p>
         <input id="ota-file" type="file" accept=".bin">
-        <button id="ota-start" class="btn mt1">Upload &amp; flash</button>
+        <button id="ota-start" class="btn mt1" data-i18n="troubleshoot.ota.start"></button>
         <div id="ota-progress" class="small muted mt1"></div>
       </div>
       <div class="card">
-        <h3>Backup &amp; restore</h3>
-        <p class="small">Download the whole configuration as JSON, or restore a previous file.</p>
+        <h3 data-i18n="troubleshoot.backup.title"></h3>
+        <p class="small" data-i18n="troubleshoot.backup.hint"></p>
         <div class="row">
           <button id="backup-download" class="btn" data-i18n="troubleshoot.export.config"></button>
           <button id="backup-restore" class="btn" data-i18n="troubleshoot.restore.config"></button>
@@ -135,17 +144,17 @@
         </div>
       </div>
       <div class="card">
-        <h3>Device control</h3>
+        <h3 data-i18n="troubleshoot.control.title"></h3>
         <div class="row">
-          <button id="dev-reboot" class="btn">Reboot</button>
-          <button id="dev-reset" class="btn danger">Factory reset</button>
+          <button id="dev-reboot" class="btn" data-i18n="troubleshoot.reboot"></button>
+          <button id="dev-reset" class="btn danger" data-i18n="troubleshoot.factoryReset"></button>
         </div>
-        <p class="small muted mt1">A factory reset clears Wi-Fi credentials and restores the default AP (arsin_print_server / arsin1234).</p>
+        <p class="small muted mt1" data-i18n="troubleshoot.factoryReset.hint"></p>
       </div>
       <div class="card">
-        <h3>Diagnostics</h3>
+        <h3 data-i18n="troubleshoot.diag.title"></h3>
         <pre id="diag-out">Connect to a device to collect diagnostics.</pre>
-        <button id="diag-run" class="btn small mt1">Collect diagnostics</button>
+        <button id="diag-run" class="btn small mt1" data-i18n="troubleshoot.diag.run"></button>
       </div>
     </div>
   </div>

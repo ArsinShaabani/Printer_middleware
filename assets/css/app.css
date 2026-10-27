@@ -60,6 +60,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 [dir='rtl'] body { letter-spacing: 0; }
+/* Persian reads better with a little more leading and no faux letter-spacing. */
+html[lang='fa'] body { line-height: 1.85; font-size: 16px; }
+html[lang='fa'] h1, html[lang='fa'] h2, html[lang='fa'] h3, html[lang='fa'] h4 { line-height: 1.45; letter-spacing: 0; }
+html[lang='fa'] .hero .eyebrow, html[lang='fa'] .section-head .step { letter-spacing: .02em; }
+html[lang='fa'] code, html[lang='fa'] pre, html[lang='fa'] .mono { font-family: var(--mono); }
+[dir='rtl'] .kv dt { text-align: start; }
+[dir='rtl'] ul, [dir='rtl'] ol { padding-inline-start: 22px; padding-inline-end: 0; }
+[dir='rtl'] .el-item .grow, [dir='rtl'] .card p, [dir='rtl'] .card li { text-align: start; }
+[dir='rtl'] .palette-btn { justify-content: flex-start; }
+[dir='rtl'] .tabs { flex-direction: row; }
 a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
 code, pre, kbd { font-family: var(--mono); font-size: .86em; }

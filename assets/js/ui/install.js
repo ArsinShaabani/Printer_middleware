@@ -373,13 +373,14 @@ async function renderFlash() {
   host.append(card);
 
   const after = el('div', { class: 'card mt2' }, [
-    el('h3', { text: 'After flashing' }),
+    el('h3', { text: t('install.after.title') }),
     el('ol', { class: 'steps-list' }, [
-      el('li', { text: 'Disconnect the board from the computer and power it from a 5V supply.' }),
-      el('li', { text: 'Join the Wi-Fi network arsin_print_server (password arsin1234) - a setup wizard opens automatically.' }),
-      el('li', { text: 'Pick your office Wi-Fi, set the printer language and press Save; the bridge reconnects by itself forever.' }),
-      el('li', { text: 'Open http://arsin_print_server.local any time from the same network.' })
-    ])
+      el('li', { text: t('install.after.1') }),
+      el('li', { text: t('install.after.2') }),
+      el('li', { text: t('install.after.3') }),
+      el('li', { html: t('install.after.4').replace('http://arsin_print_server.local', '<code>http://arsin_print_server.local</code>') })
+    ]),
+    el('p', { class: 'small mb0', text: t('install.after.device') })
   ]);
   host.append(after);
 }
@@ -387,25 +388,35 @@ async function renderFlash() {
 function buildInstructions() {
   const board = state.board;
   const env = state.app.firmware.env || 'esp32';
-  const variant = state.app.firmware.variant || 'wifi';
+  const variant = (state.app.firmware.variant || 'wifi').toUpperCase();
   const lines = [];
+  lines.push('# one-time setup: the ESP cores are not in the default Arduino index');
+  lines.push('arduino-cli config init --overwrite');
+  lines.push('arduino-cli config add board_manager.additional_urls \\');
+  lines.push('  https://espressif.github.io/arduino-esp32/package_esp32_index.json \\');
+  lines.push('  https://arduino.esp8266.com/stable/package_esp8266com_index.json');
+  lines.push('arduino-cli core update-index');
+  lines.push('');
+  lines.push('# the device web app (designer, maintenance, docs) is embedded, so build it first');
+  lines.push('node tools/build-web-assets.mjs && node tools/build-web-assets.mjs --min');
+  lines.push('');
   if (board.family === 'esp8266') {
     lines.push('arduino-cli core install esp8266:esp8266');
     lines.push(`arduino-cli compile -b ${board.tool.fqbn} -e firmware/arsin_print_server_esp8266 \\`);
-    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_WIFI"`);
+    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_${variant}"`);
     lines.push(`arduino-cli upload -p /dev/ttyUSB0 -b ${board.tool.fqbn} firmware/arsin_print_server_esp8266`);
   } else if (env === 'rpi') {
     lines.push('curl -fsSL https://raw.githubusercontent.com/ArsinShaabani/Printer_middleware/main/firmware/raspberrypi/install.sh | sudo bash');
   } else {
     lines.push('arduino-cli core install esp32:esp32');
     lines.push(`arduino-cli compile -b ${board.tool.fqbn} -e firmware/arsin_print_server \\`);
-    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_${variant.toUpperCase()}"`);
+    lines.push(`  --build-property build.extra_flags="-DARSIN_VARIANT_${variant}"`);
     lines.push(`arduino-cli upload -p /dev/ttyACM0 -b ${board.tool.fqbn} firmware/arsin_print_server`);
   }
   return el('details', { class: 'mt2' }, [
     el('summary', { text: t('install.flash.manual') }),
     el('pre', { text: lines.join('\n') }),
-    el('p', { class: 'small muted', text: 'The GitHub Actions workflow builds every board/variant pair and publishes the manifests used by this page.' })
+    el('p', { class: 'small muted', text: t('install.flash.manual.hint') })
   ]);
 }
 

@@ -50,7 +50,7 @@ function renderFamilies() {
   const select = document.getElementById('board-family');
   if (!select) return;
   select.innerHTML = '';
-  select.append(el('option', { value: 'all', text: 'All families' }));
+  select.append(el('option', { value: 'all', text: t('home.hardware.all', 'All families') }));
   for (const g of groupByFamily(state.catalog.boards)) {
     select.append(el('option', { value: g.family, text: g.family.toUpperCase() + ' (' + g.items.length + ')' }));
   }
@@ -76,7 +76,7 @@ function renderBoards() {
         el('td', { class: 'small', text: board.mcu }),
         el('td', { class: 'small', text: radios }),
         el('td', { class: 'small', text: board.power.input + ' \u00b7 ~' + board.power.typicalMa + ' mA' }),
-        el('td', {}, [el('span', { class: 'badge ok', text: String(apps.length) + ' variants' })]),
+        el('td', {}, [el('span', { class: 'badge ok', text: String(apps.length) + ' ' + t('home.table.variants', 'variants') })]),
         el('td', {}, [el('a', { class: 'btn small', href: 'install.html?board=' + encodeURIComponent(board.id), text: t('nav.install') })])
       ])
     );
@@ -86,7 +86,7 @@ function renderBoards() {
     return;
   }
   const table = el('table', {}, [
-    el('thead', {}, [el('tr', {}, [t('common.board'), t('common.mcu'), t('common.radios'), t('common.power'), 'Firmware', ''].map((h) => el('th', { text: h })))]),
+    el('thead', {}, [el('tr', {}, [t('common.board'), t('common.mcu'), t('common.radios'), t('common.power'), t('home.table.firmware', 'Firmware'), ''].map((h) => el('th', { text: h })))]),
     el('tbody', {}, rows)
   ]);
   host.innerHTML = '';
