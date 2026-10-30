@@ -2,6 +2,9 @@
 
 **Make any printer wireless - and flash it straight from the browser.**
 
+> Fixes and the reasoning behind them live in [CHANGELOG.md](CHANGELOG.md) - including the ten
+> compile errors and the ESP8266 memory bug that used to keep the firmware from building at all.
+
 Arsin Print Server is a complete, open print bridge for **ESP32**, **ESP8266** and **Raspberry Pi**
 boards, plus a data-driven installer website that:
 
