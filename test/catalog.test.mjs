@@ -68,7 +68,8 @@ test('every board declares family, MCU, tool, pins and radios', () => {
     assert.ok(b.tool && typeof b.tool === 'object', `${b.id}: tool`);
     assert.ok(['esp-web-tools', 'sd-card', 'any'].includes(b.tool.kind), `${b.id}: tool.kind`);
     if (b.family === 'esp32' || b.family === 'esp8266') {
-      assert.match(b.tool.fqbn, /^(esp32|esp8266):(esp32|esp8266):[a-z0-9_]+$/, `${b.id}: FQBN`);
+      // The FQBN may carry board options such as :PartitionScheme=min_spiffs.
+      assert.match(b.tool.fqbn, /^(esp32|esp8266):(esp32|esp8266):[a-z0-9_]+(:[A-Za-z0-9_]+=[A-Za-z0-9_]+)*$/, `${b.id}: FQBN`);
       assert.ok(['ESP32', 'ESP32-S2', 'ESP32-S3', 'ESP32-C3', 'ESP32-C6', 'ESP8266'].includes(b.tool.chipFamily), `${b.id}: chipFamily`);
     }
     if (b.family === 'rpi') {

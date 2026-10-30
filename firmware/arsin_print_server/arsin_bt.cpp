@@ -223,6 +223,37 @@ bool arsinBtConnected() { return g_started && g_connected; }
 const char* arsinBtMode() { return g_started ? g_mode : "off"; }
 const char* printerBtName() { return g_config.btName; }
 uint32_t arsinBtRxBytes() { return g_rxBytes; }
+
+/* --- the printer -> Bluetooth direction (status replies, form feeds, ...) --- */
+
+bool printerBtBegin() { return arsinBtBegin(); }
+void printerBtLoop() { arsinBtLoop(); }
+bool printerBtConnected() { return arsinBtConnected(); }
+
+size_t printerBtWrite(const uint8_t* data, size_t len) {
+  if (!data || len == 0 || !g_started) return 0;
+#if ARSIN_FEATURE_BT_SPP
+  if (!g_config.ble) {
+    if (!g_connected) return 0;
+    return (size_t)g_spp.write(data, len);
+  }
+#endif
+#if ARSIN_FEATURE_BLE
+  if (g_bleTx) {
+    /* A BLE notification carries one MTU-sized payload, so chunk the data. */
+    size_t sent = 0;
+    while (sent < len) {
+      const size_t chunk = ((len - sent) > 20) ? 20 : (len - sent);
+      g_bleTx->setValue((uint8_t*)(data + sent), chunk);
+      g_bleTx->notify();
+      sent += chunk;
+      delay(4);
+    }
+    return sent;
+  }
+#endif
+  return 0;
+}
 const char* arsinBtNote() {
   if (g_started) return "ready";
 #if defined(ARDUINO_ARCH_ESP8266)

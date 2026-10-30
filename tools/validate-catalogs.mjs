@@ -86,7 +86,8 @@ function checkBoards(boardsJson, familyIds) {
     else {
       if (!isNonEmptyString(tool.kind)) error(`board "${id}": tool.kind is required`);
       if (ESP_FAMILIES.includes(raw.family)) {
-        if (!/^(esp32|esp8266):(esp32|esp8266):[a-z0-9_]+$/.test(String(tool.fqbn || ''))) error(`board "${id}": invalid FQBN "${tool.fqbn}"`);
+        /* The FQBN may carry board options ("...:PartitionScheme=min_spiffs"). */
+        if (!/^(esp32|esp8266):(esp32|esp8266):[a-z0-9_]+(:[A-Za-z0-9_]+=[A-Za-z0-9_]+)*$/.test(String(tool.fqbn || ''))) error(`board "${id}": invalid FQBN "${tool.fqbn}"`);
         if (!isNonEmptyString(tool.chipFamily)) error(`board "${id}": chipFamily is required for ${raw.family}`);
       }
       if (raw.family === 'rpi') {
