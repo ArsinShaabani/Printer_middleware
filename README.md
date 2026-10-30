@@ -109,9 +109,18 @@ arduino-cli compile -b esp8266:esp8266:nodemcuv2 -e firmware/arsin_print_server_
 Variants: `ARSIN_VARIANT_WIFI`, `ARSIN_VARIANT_BT`, `ARSIN_VARIANT_BLE`, `ARSIN_VARIANT_USBHOST`,
 `ARSIN_VARIANT_SERIAL`, `ARSIN_VARIANT_HYBRID` (see firmware/README.md for the full matrix).
 
-`npm run check:firmware` runs the static checks that catch the mistakes a compile would
-catch (brace/include balance, duplicate definitions, ESP32/ESP8266 file sync, the embedded
-asset tables compiled with the local C++ compiler, and the /api/print streaming path).
+`npm run check:firmware` runs the four checks that stand in for a compile on a machine without
+the Arduino cores - they exist because ten real errors once reached CI unnoticed (see
+[CHANGELOG.md](CHANGELOG.md)):
+
+- `check-sources.mjs` - brace/include balance, ESP32/ESP8266 file sync, multi-line and one-line
+  definitions, **functions declared but never defined** (a link error) and duplicate definitions
+  (warnings when both copies sit inside `#if` blocks, errors otherwise);
+- `check-syntax.mjs` - compiles the core-independent translation units with your local C++
+  compiler against a small Arduino stub **and counts the arguments at every call site** of a
+  function the sketch declares;
+- `check-assets.mjs` - compiles the embedded asset tables (fallback + generated) for both sketches;
+- `check-print-streaming.mjs` - keeps `/api/print` streaming instead of buffering.
 
 ---
 
@@ -291,8 +300,13 @@ Then set **Settings -> Pages -> Source: GitHub Actions** once. After that:
 > a run can be **green while producing no firmware at all**. Always check the job summary: it must
 > list the binaries under *Firmware binaries collected*. If it says
 > "No firmware binaries were produced", open one of the *Compile …* jobs and read the compiler
-> output; `npm run check:firmware` now catches the core-independent C++ errors locally
-> (`firmware/tools/check-syntax.mjs`), which is exactly what was missing before.
+> output; `npm run check:firmware` catches most of these classes of error locally.
+>
+> That is exactly how this project shipped for a while: ten real errors (an ambiguous overload, a
+> missing include, a `uint16_t`/`uint32_t` mismatch, a missing `WiFiClient.h`, a call with one
+> argument too few, an undefined function, a duplicate definition, five ESP8266 API differences and
+> an ESP8266 DRAM overflow) hid behind a green run. Every one of them is listed with its fix in
+> [CHANGELOG.md](CHANGELOG.md).
 
 ### Large print jobs
 
