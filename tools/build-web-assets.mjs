@@ -106,8 +106,13 @@ export function renderHeader(assets) {
   lines.push('#pragma once');
   lines.push('#include <stdint.h>');
   lines.push('#include <stddef.h>');
+  // The assets must land in flash: on AVR that is <avr/pgmspace.h>, on the
+  // ESP32/ESP8266 cores <pgmspace.h>. Without a real PROGMEM the whole bundle
+  // is placed in DRAM and the ESP8266 link fails (dram0_0_seg overflow).
   lines.push('#if defined(__AVR__)');
   lines.push('#include <avr/pgmspace.h>');
+  lines.push('#elif __has_include(<pgmspace.h>)');
+  lines.push('#include <pgmspace.h>');
   lines.push('#endif');
   lines.push('#ifndef PROGMEM');
   lines.push('#define PROGMEM');
