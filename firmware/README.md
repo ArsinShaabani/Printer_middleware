@@ -107,6 +107,12 @@ board over Wi-Fi, so they are part of **every** build, ESP32 and ESP8266 alike; 
 flag only selects which header is written.  Both pages probe `/api/health` at start-up and,
 when the board is the one serving them, connect to `window.location.origin` automatically.
 
+**Keep the assets in flash.**  The generated header must be able to see the core's `PROGMEM`
+(`<pgmspace.h>` on the ESP32/ESP8266, `<avr/pgmspace.h>` on AVR) - it includes it through
+`__has_include`.  If `PROGMEM` ends up empty the whole bundle (~137 kB gzipped) is placed in
+DRAM and the ESP8266 link fails with `section '.rodata' will not fit in region 'dram0_0_seg'`:
+the ESP8266 only has ~80 kB of DRAM, so nothing large can live there.
+
 ## 2. Variants (compile flags)
 
 Add one `-D` flag; it selects the transport set **and** the catalog app id

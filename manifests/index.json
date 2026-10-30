@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-27T12:07:18.700Z",
+  "generated": "2026-10-30T03:23:33.627Z",
   "version": 1,
   "builds": [
     {
@@ -7,7 +7,7 @@
       "board": "esp32-devkit-v1",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-devkit-v1.json",
       "available": false
@@ -17,7 +17,7 @@
       "board": "esp32-wroom-32d",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-wroom-32d.json",
       "available": false
@@ -27,7 +27,7 @@
       "board": "esp32-wrover-devkit",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32wrover",
+      "fqbn": "esp32:esp32:esp32wrover:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-wrover-devkit.json",
       "available": false
@@ -37,7 +37,7 @@
       "board": "esp32-s3-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-s3-devkitc-1.json",
       "available": false
@@ -47,7 +47,7 @@
       "board": "esp32-s3-zero",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-s3-zero.json",
       "available": false
@@ -57,7 +57,7 @@
       "board": "esp32-c3-devkitm-1",
       "family": "esp32",
       "chipFamily": "ESP32-C3",
-      "fqbn": "esp32:esp32:esp32c3",
+      "fqbn": "esp32:esp32:esp32c3:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-c3-devkitm-1.json",
       "available": false
@@ -67,7 +67,7 @@
       "board": "esp32-c6-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-C6",
-      "fqbn": "esp32:esp32:esp32c6",
+      "fqbn": "esp32:esp32:esp32c6:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-c6-devkitc-1.json",
       "available": false
@@ -77,7 +77,7 @@
       "board": "esp32-s2-devkit",
       "family": "esp32",
       "chipFamily": "ESP32-S2",
-      "fqbn": "esp32:esp32:esp32s2",
+      "fqbn": "esp32:esp32:esp32s2:PartitionScheme=min_spiffs",
       "variant": "wifi",
       "manifest": "manifests/print-server-wifi/esp32-s2-devkit.json",
       "available": false
@@ -117,7 +117,7 @@
       "board": "esp32-devkit-v1",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "bt",
       "manifest": "manifests/print-server-bt-spp/esp32-devkit-v1.json",
       "available": false
@@ -127,7 +127,7 @@
       "board": "esp32-wroom-32d",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "bt",
       "manifest": "manifests/print-server-bt-spp/esp32-wroom-32d.json",
       "available": false
@@ -137,7 +137,7 @@
       "board": "esp32-wrover-devkit",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32wrover",
+      "fqbn": "esp32:esp32:esp32wrover:PartitionScheme=min_spiffs",
       "variant": "bt",
       "manifest": "manifests/print-server-bt-spp/esp32-wrover-devkit.json",
       "available": false
@@ -147,7 +147,7 @@
       "board": "esp32-devkit-v1",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-devkit-v1.json",
       "available": false
@@ -157,7 +157,7 @@
       "board": "esp32-wroom-32d",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-wroom-32d.json",
       "available": false
@@ -167,7 +167,7 @@
       "board": "esp32-wrover-devkit",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32wrover",
+      "fqbn": "esp32:esp32:esp32wrover:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-wrover-devkit.json",
       "available": false
@@ -177,7 +177,7 @@
       "board": "esp32-s3-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-s3-devkitc-1.json",
       "available": false
@@ -187,7 +187,7 @@
       "board": "esp32-s3-zero",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-s3-zero.json",
       "available": false
@@ -197,7 +197,7 @@
       "board": "esp32-c3-devkitm-1",
       "family": "esp32",
       "chipFamily": "ESP32-C3",
-      "fqbn": "esp32:esp32:esp32c3",
+      "fqbn": "esp32:esp32:esp32c3:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-c3-devkitm-1.json",
       "available": false
@@ -207,7 +207,7 @@
       "board": "esp32-c6-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-C6",
-      "fqbn": "esp32:esp32:esp32c6",
+      "fqbn": "esp32:esp32:esp32c6:PartitionScheme=min_spiffs",
       "variant": "ble",
       "manifest": "manifests/print-server-ble/esp32-c6-devkitc-1.json",
       "available": false
@@ -217,7 +217,7 @@
       "board": "esp32-s3-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "usbhost",
       "manifest": "manifests/print-server-usbhost/esp32-s3-devkitc-1.json",
       "available": false
@@ -227,7 +227,7 @@
       "board": "esp32-s3-zero",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "usbhost",
       "manifest": "manifests/print-server-usbhost/esp32-s3-zero.json",
       "available": false
@@ -237,7 +237,7 @@
       "board": "esp32-s2-devkit",
       "family": "esp32",
       "chipFamily": "ESP32-S2",
-      "fqbn": "esp32:esp32:esp32s2",
+      "fqbn": "esp32:esp32:esp32s2:PartitionScheme=min_spiffs",
       "variant": "usbhost",
       "manifest": "manifests/print-server-usbhost/esp32-s2-devkit.json",
       "available": false
@@ -247,7 +247,7 @@
       "board": "esp32-devkit-v1",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-devkit-v1.json",
       "available": false
@@ -257,7 +257,7 @@
       "board": "esp32-wroom-32d",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-wroom-32d.json",
       "available": false
@@ -267,7 +267,7 @@
       "board": "esp32-wrover-devkit",
       "family": "esp32",
       "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32wrover",
+      "fqbn": "esp32:esp32:esp32wrover:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-wrover-devkit.json",
       "available": false
@@ -277,7 +277,7 @@
       "board": "esp32-s3-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-s3-devkitc-1.json",
       "available": false
@@ -287,7 +287,7 @@
       "board": "esp32-s3-zero",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-s3-zero.json",
       "available": false
@@ -297,7 +297,7 @@
       "board": "esp32-c3-devkitm-1",
       "family": "esp32",
       "chipFamily": "ESP32-C3",
-      "fqbn": "esp32:esp32:esp32c3",
+      "fqbn": "esp32:esp32:esp32c3:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-c3-devkitm-1.json",
       "available": false
@@ -307,7 +307,7 @@
       "board": "esp32-c6-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-C6",
-      "fqbn": "esp32:esp32:esp32c6",
+      "fqbn": "esp32:esp32:esp32c6:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-c6-devkitc-1.json",
       "available": false
@@ -317,7 +317,7 @@
       "board": "esp32-s2-devkit",
       "family": "esp32",
       "chipFamily": "ESP32-S2",
-      "fqbn": "esp32:esp32:esp32s2",
+      "fqbn": "esp32:esp32:esp32s2:PartitionScheme=min_spiffs",
       "variant": "serial",
       "manifest": "manifests/print-server-serial/esp32-s2-devkit.json",
       "available": false
@@ -357,7 +357,7 @@
       "board": "esp32-s3-devkitc-1",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "hybrid",
       "manifest": "manifests/print-server-hybrid/esp32-s3-devkitc-1.json",
       "available": false
@@ -367,7 +367,7 @@
       "board": "esp32-s3-zero",
       "family": "esp32",
       "chipFamily": "ESP32-S3",
-      "fqbn": "esp32:esp32:esp32s3",
+      "fqbn": "esp32:esp32:esp32s3:PartitionScheme=min_spiffs",
       "variant": "hybrid",
       "manifest": "manifests/print-server-hybrid/esp32-s3-zero.json",
       "available": false
@@ -377,7 +377,7 @@
       "board": "esp32-s2-devkit",
       "family": "esp32",
       "chipFamily": "ESP32-S2",
-      "fqbn": "esp32:esp32:esp32s2",
+      "fqbn": "esp32:esp32:esp32s2:PartitionScheme=min_spiffs",
       "variant": "hybrid",
       "manifest": "manifests/print-server-hybrid/esp32-s2-devkit.json",
       "available": false
