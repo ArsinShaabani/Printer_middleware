@@ -14,6 +14,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(__AVR__)
+  #include <avr/pgmspace.h>
+#elif __has_include(<pgmspace.h>)
+  #include <pgmspace.h>
+#endif
 #ifndef PROGMEM
   #define PROGMEM
 #endif

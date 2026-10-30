@@ -133,8 +133,12 @@ class ArsinBleServerCallbacks : public BLEServerCallbacks {
 
 class ArsinBleRxCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* characteristic) override {
-    const std::string value = characteristic->getValue();
-    if (!value.empty()) printerBtOnReceive((const uint8_t*)value.data(), value.size());
+    /* arduino-esp32 3.x returns an Arduino String here, older cores a
+     * std::string - both expose c_str(), so read it through the C string. */
+    const auto value = characteristic->getValue();
+    const char* text = value.c_str();
+    const size_t len = text ? strlen(text) : 0;
+    if (len) printerBtOnReceive((const uint8_t*)text, len);
   }
 };
 
