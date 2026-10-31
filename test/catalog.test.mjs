@@ -266,7 +266,16 @@ test('helpers: manifestPath, flashKind, grouping and lookups', () => {
   assert.equal(wifiBoards.length, 15);
   assert.ok(wifiBoards.every((x) => x.compat.ok), 'every board can run the Wi-Fi bridge');
   const esp32Apps = appsForBoard(catalog, 'esp32-devkit-v1').map((x) => x.app.id);
-  assert.deepEqual(esp32Apps, ['print-server-ble', 'print-server-bt-spp', 'print-server-serial', 'print-server-wifi']);
+  // The BLE build needs ~1.99 MB and a 4 MB ESP32 cannot offer that together with
+  // the OTA partitions (see the app's excludeReason), so the classic ESP32 keeps
+  // the Bluetooth SPP build instead.
+  assert.deepEqual(esp32Apps, ['print-server-bt-spp', 'print-server-serial', 'print-server-wifi']);
+  const bleBoards = boardsForApp(catalog, 'print-server-ble').map((x) => x.board.id);
+  assert.ok(bleBoards.includes('esp32-devkit-v1'), 'the board list still offers every board (marked partial)');
+  const bleCompat = compatibility(board('esp32-devkit-v1'), app('print-server-ble'));
+  assert.equal(bleCompat.ok, false, 'the 4 MB classic ESP32 cannot run the BLE build');
+  assert.match(bleCompat.blockers.join(' '), /1\.875 MB application slot/, 'the wizard explains why');
+  assert.equal(compatibility(board('esp32-c6-devkitc-1'), app('print-server-ble')).ok, true, 'the C6 runs the BLE build');
   const s3Apps = appsForBoard(catalog, 'esp32-s3-devkitc-1').map((x) => x.app.id);
   assert.ok(s3Apps.includes('print-server-usbhost'), 'S3 gets the USB host build');
   assert.ok(s3Apps.includes('print-server-hybrid'), 'S3 gets the hybrid build');

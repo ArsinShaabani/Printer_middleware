@@ -206,7 +206,12 @@
       "summary": "Exposes the printer over a Bluetooth Low Energy GATT service (Nordic UART style TX/RX characteristics plus a battery/status service) so mobile apps and modern POS terminals can print without a network.",
       "category": "printer-bridge",
       "capabilities": ["ble", "web-ui", "troubleshooting", "api"],
-      "requires": { "families": ["esp32", "rpi"], "radios": ["ble"] },
+      "requires": {
+        "families": ["esp32", "rpi"],
+        "radios": ["ble"],
+        "excludeBoards": ["esp32-devkit-v1", "esp32-wroom-32d", "esp32-wrover-devkit"],
+        "excludeReason": "The BLE build is ~1.99 MB, which does not fit the 1.875 MB application slot of the largest OTA partition scheme on a 4 MB ESP32. Use the ESP32-S3/C3/C6 builds for BLE (as this app is intended), or the Bluetooth SPP build on the classic ESP32."
+      },
       "features": [
         "BLE GATT UART service (6E400001-B5A3-F393-E0A9-E50E24DCCA9E) with TX/RX characteristics",
         "Device Information service with model, firmware version and serial number",

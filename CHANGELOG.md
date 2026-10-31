@@ -36,6 +36,36 @@ Plus one memory bug that only shows up at link time on the ESP8266:
   fallback header) now include the core `pgmspace.h` through `__has_include`, so the assets
   really live in flash.
 
+Two more, found once the ESP8266 build finally linked:
+
+- **`printerBtBegin/Loop/Connected/Write` were only defined in the *stub* block** of
+  `arsin_printer.cpp` (`#if !ARSIN_FEATURE_BT_SPP && !ARSIN_FEATURE_BLE`), so every BT/BLE/hybrid
+  build failed to link. They now live in the enabled branch of `arsin_bt.cpp`, including the
+  missing **printer -> Bluetooth** direction (SPP `write` and chunked BLE notifications).
+- **`ESP_SPP_DISCONNECT_COMPLETE_EVT` does not exist in arduino-esp32 3.x** (IDF 4.x only) - the
+  SPP callback handles `ESP_SPP_CLOSE_EVT`, which is enough.
+
+### Flash partitions
+
+The default arduino-esp32 partition gives the application 1.25 MB, and the firmware had grown past
+it:
+
+```
+ESP32-S3: Sketch uses 1219185 bytes (93%) of program storage space. Maximum is 1310720 bytes.
+ESP32-C3: Sketch uses 1341411 bytes (102%) of program storage space. Maximum is 1310720 bytes.
+```
+
+The catalog FQBNs now select `PartitionScheme=min_spiffs` (1.875 MB application + OTA + 190 kB
+SPIFFS), which is what a device that advertises OTA needs anyway. The FQBN validator and its test
+accept board options (`...:Option=Value`).
+
+The **BLE build on the classic ESP32 is the one exception**: it is ~1.99 MB because that core links
+the full Bluedroid stack, and a 4 MB flash cannot offer two application slots that large. Rather
+than dropping OTA everywhere, `print-server-ble` excludes the three 4 MB classic ESP32 boards with
+an explicit `excludeReason` that the wizard shows - the app was always aimed at the ESP32-S3/C3/C6,
+and the classic ESP32 keeps the Bluetooth SPP build.
+
+
 ### The checks that should have caught it
 
 The old static checker only looked at balanced braces and resolvable includes, which is why all
