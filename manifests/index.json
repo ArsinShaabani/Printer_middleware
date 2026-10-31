@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-30T03:23:33.627Z",
+  "generated": "2026-10-31T04:08:08.752Z",
   "version": 1,
   "builds": [
     {
@@ -140,36 +140,6 @@
       "fqbn": "esp32:esp32:esp32wrover:PartitionScheme=min_spiffs",
       "variant": "bt",
       "manifest": "manifests/print-server-bt-spp/esp32-wrover-devkit.json",
-      "available": false
-    },
-    {
-      "app": "print-server-ble",
-      "board": "esp32-devkit-v1",
-      "family": "esp32",
-      "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
-      "variant": "ble",
-      "manifest": "manifests/print-server-ble/esp32-devkit-v1.json",
-      "available": false
-    },
-    {
-      "app": "print-server-ble",
-      "board": "esp32-wroom-32d",
-      "family": "esp32",
-      "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32:PartitionScheme=min_spiffs",
-      "variant": "ble",
-      "manifest": "manifests/print-server-ble/esp32-wroom-32d.json",
-      "available": false
-    },
-    {
-      "app": "print-server-ble",
-      "board": "esp32-wrover-devkit",
-      "family": "esp32",
-      "chipFamily": "ESP32",
-      "fqbn": "esp32:esp32:esp32wrover:PartitionScheme=min_spiffs",
-      "variant": "ble",
-      "manifest": "manifests/print-server-ble/esp32-wrover-devkit.json",
       "available": false
     },
     {

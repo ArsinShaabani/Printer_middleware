@@ -103,7 +103,8 @@ void sppEvent(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
       LOGI("bt: SPP client connected");
       break;
     case ESP_SPP_CLOSE_EVT:
-    case ESP_SPP_DISCONNECT_COMPLETE_EVT:
+      /* ESP_SPP_DISCONNECT_COMPLETE_EVT existed on IDF 4.x only - the close
+       * event is enough to notice that the client went away. */
       g_connected = false;
       flushJob("disconnect");
       LOGI("bt: SPP client disconnected");

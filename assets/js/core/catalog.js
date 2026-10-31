@@ -174,7 +174,7 @@ export function compatibility(board, app, transportId) {
   if (arr(req.families).length && !req.families.includes(board.family)) {
     blockers.push(`App needs board family: ${req.families.join(' / ')} (this board is "${board.family}")`);
   }
-  if (arr(req.excludeBoards).includes(board.id)) blockers.push('This board is explicitly excluded by the app.');
+  if (arr(req.excludeBoards).includes(board.id)) blockers.push(req.excludeReason || 'This board is explicitly excluded by the app.');
   if (arr(req.excludeApp).includes(app.id)) blockers.push('This app is not available for this board.');
   for (const radio of arr(req.radios)) {
     if (!board.radios[radio]) blockers.push(`Board has no ${radioLabel(radio)} radio.`);
