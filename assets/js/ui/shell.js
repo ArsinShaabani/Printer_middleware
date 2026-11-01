@@ -296,16 +296,22 @@ export function renderShell() {
   for (const item of NAV) {
     nav.append(el('a', { href: item.href, text: t(item.key), class: item.href === page ? 'active' : '' }));
   }
-  const tools = el('div', { class: 'header-tools' }, [
-    el('button', {
-      class: 'icon-btn small ghost',
-      title: t('action.language'),
-      text: getLanguage() === 'fa' ? 'EN' : '\u0641\u0627',
-      onclick: () => setLanguage(getLanguage() === 'fa' ? 'en' : 'fa')
-    }),
+  const tools = el('div', { class: 'header-tools' });
+  // The landing page is English only, so it does not offer the language switch.
+  if (page !== 'index.html' && page !== '') {
+    tools.append(
+      el('button', {
+        class: 'icon-btn small ghost',
+        title: t('action.language'),
+        text: getLanguage() === 'fa' ? 'EN' : '\u0641\u0627',
+        onclick: () => setLanguage(getLanguage() === 'fa' ? 'en' : 'fa')
+      })
+    );
+  }
+  tools.append(
     el('button', { class: 'icon-btn small ghost', title: t('action.theme'), text: '\u25d0', onclick: toggleTheme }),
-    el('a', { class: 'btn small primary', href: 'install.html', text: t('nav.install') })
-  ]);
+    el('a', { class: 'btn small primary', href: 'install.html', text: 'Install' })
+  );
   bar.append(brand, nav, tools);
   header.append(bar);
   const headerHost = $('#app-header');

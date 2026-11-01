@@ -5,108 +5,201 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#4f46e5">
 <title>Arsin Print Server - make any printer wireless from the browser</title>
-<meta name="description" content="Install Arsin Print Server firmware on ESP32, ESP8266 or Raspberry Pi straight from your browser: Wi-Fi, Bluetooth and USB-host print bridges with a full web control panel, label designer and maintenance console.">
+<meta name="description" content="Turn a serial, USB or parallel printer into a Wi-Fi, Bluetooth or USB-host network printer. Flash ESP32, ESP8266 or Raspberry Pi straight from your browser, then design labels and run maintenance from the device's own web app.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='8' y='6' width='16' height='8' rx='2' fill='white'/%3E%3Crect x='6' y='14' width='20' height='9' rx='2' fill='white'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
 <div id="app-header"></div>
 
-<main class="wrap">
-  <section class="hero">
-    <span class="eyebrow">arsin_print_server &middot; ESP32 / ESP8266 / Raspberry Pi</span>
-    <h1 data-i18n="app.hero.title">Make any printer wireless - from the browser</h1>
-    <p class="lead" data-i18n="app.hero.lead"></p>
-    <div class="row mt2">
-      <a class="btn primary" href="install.html" data-i18n="nav.install"></a>
-      <a class="btn" href="designer.html" data-i18n="nav.designer"></a>
-      <a class="btn ghost" href="troubleshoot.html" data-i18n="nav.troubleshoot"></a>
+<main class="wrap landing">
+  <section class="hero hero-rich">
+    <div class="hero-copy">
+      <span class="eyebrow">arsin_print_server &middot; ESP32 / ESP8266 / Raspberry Pi</span>
+      <h1>Make any printer wireless - from the browser</h1>
+      <p class="lead">Pick a firmware variant and a board, follow a generated wiring diagram, flash it with Web Serial, then design labels and run maintenance from the device's own web app. No toolchain, no cloud, no drivers to install.</p>
+      <div class="row mt2">
+        <a class="btn primary lg" href="install.html">Open the installer</a>
+        <a class="btn lg" href="designer.html">Try the label designer</a>
+        <a class="btn ghost lg" href="troubleshoot.html">Maintenance console</a>
+      </div>
+      <div class="pill-list mt2">
+        <span class="badge ok">no toolchain</span>
+        <span class="badge ok">works offline</span>
+        <span class="badge ok">MIT licensed</span>
+        <span class="badge info">raw TCP 9100</span>
+        <span class="badge info">mDNS + REST API</span>
+      </div>
     </div>
-    <div class="grid cols-4 mt3">
-      <div class="card pad-sm"><strong id="stat-boards">-</strong><div class="small" data-i18n="home.stat.boards"></div></div>
-      <div class="card pad-sm"><strong id="stat-apps">-</strong><div class="small" data-i18n="home.stat.apps"></div></div>
-      <div class="card pad-sm"><strong id="stat-langs">-</strong><div class="small" data-i18n="home.stat.langs"></div></div>
-      <div class="card pad-sm"><strong id="stat-symbologies">-</strong><div class="small" data-i18n="home.stat.symbologies"></div></div>
+    <figure class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 420 240" role="img">
+        <defs>
+          <linearGradient id="heroWire" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#22d3ee"/>
+          </linearGradient>
+        </defs>
+        <rect x="8" y="70" width="104" height="86" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+        <rect x="26" y="50" width="68" height="24" rx="6" fill="#4f46e5"/>
+        <rect x="30" y="96" width="60" height="10" rx="3" fill="#4f46e5" opacity=".3"/>
+        <rect x="30" y="114" width="42" height="10" rx="3" fill="#4f46e5" opacity=".3"/>
+        <text x="60" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">Printer</text>
+        <text x="60" y="196" text-anchor="middle" font-size="11" fill="#64748b">serial / USB</text>
+
+        <path d="M116 113 H 190" stroke="url(#heroWire)" stroke-width="3" fill="none"/>
+        <circle cx="116" cy="113" r="5" fill="#4f46e5"/>
+        <circle cx="190" cy="113" r="5" fill="#4f46e5"/>
+
+        <rect x="190" y="79" width="104" height="68" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+        <rect x="206" y="95" width="72" height="8" rx="3" fill="#059669" opacity=".45"/>
+        <rect x="206" y="111" width="52" height="8" rx="3" fill="#059669" opacity=".45"/>
+        <rect x="206" y="127" width="62" height="8" rx="3" fill="#059669" opacity=".45"/>
+        <text x="242" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#047857">ESP32 / ESP8266 / Pi</text>
+        <text x="242" y="196" text-anchor="middle" font-size="11" fill="#64748b">runs the whole web app</text>
+
+        <path d="M296 113 H 336" stroke="url(#heroWire)" stroke-width="3" fill="none" stroke-dasharray="7 5"/>
+        <g stroke="#0ea5e9" stroke-width="2.5" fill="none" stroke-linecap="round">
+          <path d="M318 89 a 22 22 0 0 1 0 48"/>
+          <path d="M330 77 a 40 40 0 0 1 0 72"/>
+        </g>
+        <rect x="340" y="87" width="66" height="52" rx="10" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2"/>
+        <rect x="348" y="97" width="48" height="7" rx="3" fill="#0ea5e9" opacity=".4"/>
+        <rect x="348" y="111" width="32" height="7" rx="3" fill="#0ea5e9" opacity=".4"/>
+        <rect x="348" y="125" width="40" height="7" rx="3" fill="#0ea5e9" opacity=".4"/>
+        <text x="373" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#0369a1">POS / PC / phone</text>
+        <text x="373" y="196" text-anchor="middle" font-size="11" fill="#64748b">port 9100</text>
+      </svg>
+    </figure>
+  </section>
+
+  <div class="stats-strip">
+    <div class="stat"><strong id="stat-boards">-</strong><span class="stat-label">supported boards</span></div>
+    <div class="stat"><strong id="stat-apps">-</strong><span class="stat-label">firmware variants</span></div>
+    <div class="stat"><strong id="stat-langs">-</strong><span class="stat-label">printer languages</span></div>
+    <div class="stat"><strong id="stat-symbologies">-</strong><span class="stat-label">barcode symbologies</span></div>
+  </div>
+
+  <nav class="landing-nav" aria-label="Sections">
+    <a href="#how">How it works</a>
+    <a href="#variants">Firmware</a>
+    <a href="#boards">Boards</a>
+    <a href="#panel">Control panel</a>
+    <a href="#quickstart">Quick start</a>
+  </nav>
+
+  <section id="how" class="landing-section">
+    <div class="section-head">
+      <div><span class="step">How it works</span><h2 class="mt0">Four steps, no toolchain</h2></div>
+    </div>
+    <ol class="steps-flow">
+      <li><span class="step-num">1</span><h3>Pick a firmware variant</h3><p class="small">Wi-Fi bridge, Bluetooth SPP, Bluetooth LE, USB host, serial passthrough, hybrid or the Raspberry Pi CUPS bridge.</p></li>
+      <li><span class="step-num">2</span><h3>Pick your board</h3><p class="small">15 boards from ESP8266 modules to the Raspberry Pi 5 - and you can import your own board JSON at any time.</p></li>
+      <li><span class="step-num">3</span><h3>Follow the wiring</h3><p class="small">A generated diagram, a pin-by-pin table, a bill of materials, safety warnings and a downloadable guide.</p></li>
+      <li><span class="step-num">4</span><h3>Flash &amp; configure</h3><p class="small">Flash from the browser with Web Serial, or run the Raspberry Pi one-liner. Then set everything up from the device's own web app.</p></li>
+    </ol>
+  </section>
+
+  <section id="variants" class="landing-section">
+    <div class="section-head">
+      <div><span class="step">Firmware variants</span><h2 class="mt0">Choose the bridge that fits the printer</h2></div>
+      <a class="btn small" href="install.html">Open the installer</a>
+    </div>
+    <div id="app-cards" class="grid cols-3"></div>
+  </section>
+
+  <section id="boards" class="landing-section">
+    <div class="section-head">
+      <div><span class="step">Hardware</span><h2 class="mt0">Supported boards</h2></div>
+      <div class="row tight">
+        <input id="board-filter" type="search" placeholder="Filter boards..." style="max-width:220px">
+        <select id="board-family" style="max-width:200px"></select>
+      </div>
+    </div>
+    <div id="board-table"></div>
+  </section>
+
+  <section id="panel" class="landing-section">
+    <div class="section-head">
+      <div><span class="step">Web control panel</span><h2 class="mt0">What the device serves to your browser</h2></div>
+      <p class="small">Everything below runs on the board itself - open its address on the network and it is all there, with no internet connection.</p>
+    </div>
+    <div class="grid cols-3">
+      <div class="card feature-card">
+        <h3>Wireless configuration</h3>
+        <ul class="small">
+          <li>Captive portal + first-run wizard</li>
+          <li>Stores 5 Wi-Fi networks and always reconnects to the last working one</li>
+          <li>Change the AP name, password and static IP</li>
+          <li>Personalise device name, owner and location</li>
+          <li>Raw TCP 9100, mDNS <code>arsin_print_server.local</code></li>
+        </ul>
+      </div>
+      <div class="card feature-card">
+        <h3>Label designer</h3>
+        <ul class="small">
+          <li>Millimetre canvas with rulers, snapping and alignment guides</li>
+          <li>Text, logo upload, lines, boxes, dash styles and variables like <code>{{serial}}</code></li>
+          <li>8 barcode symbologies + QR, Data Matrix and PDF417 output</li>
+          <li>Native commands for ESC/POS, ZPL, TSPL, EPL, CPCL, Star</li>
+          <li>Raster fallback that prints on any printer that accepts graphics</li>
+        </ul>
+        <a class="btn small ghost mt1" href="designer.html">Open the designer</a>
+      </div>
+      <div class="card feature-card">
+        <h3>Maintenance &amp; troubleshooting</h3>
+        <ul class="small">
+          <li>Self test page, status query, configuration dump</li>
+          <li>Media calibration, gap/black-mark sensor test</li>
+          <li>Nozzle check, print-head cleaning routines</li>
+          <li>Counter read/reset, darkness, speed, media type</li>
+          <li>Raw hex console, live log, USB and serial diagnostics</li>
+        </ul>
+        <a class="btn small ghost mt1" href="troubleshoot.html">Open the console</a>
+      </div>
     </div>
   </section>
 
-  <div class="section-head">
-    <div><span class="step" data-i18n="home.how.eyebrow"></span><h2 class="mt0" data-i18n="home.how.title"></h2></div>
-  </div>
-  <div class="grid cols-4">
-    <div class="card"><h3 data-i18n="home.how.1.t"></h3><p class="small" data-i18n="home.how.1.d"></p></div>
-    <div class="card"><h3 data-i18n="home.how.2.t"></h3><p class="small" data-i18n="home.how.2.d"></p></div>
-    <div class="card"><h3 data-i18n="home.how.3.t"></h3><p class="small" data-i18n="home.how.3.d"></p></div>
-    <div class="card"><h3 data-i18n="home.how.4.t"></h3><p class="small" data-i18n="home.how.4.d"></p></div>
-  </div>
-
-  <div class="section-head">
-    <div><span class="step" data-i18n="home.variants.eyebrow"></span><h2 class="mt0" data-i18n="home.variants.title"></h2></div>
-    <a class="btn small" href="install.html" data-i18n="home.variants.open"></a>
-  </div>
-  <div id="app-cards" class="grid cols-3"></div>
-
-  <div class="section-head">
-    <div><span class="step" data-i18n="home.hardware.eyebrow"></span><h2 class="mt0" data-i18n="home.hardware.title"></h2></div>
-    <div class="row tight">
-      <input id="board-filter" type="search" data-i18n-attr="placeholder=home.hardware.filter" style="max-width:220px">
-      <select id="board-family" style="max-width:200px"></select>
+  <section id="quickstart" class="landing-section">
+    <div class="section-head">
+      <div><span class="step">Quick start</span><h2 class="mt0">Three ways to get going</h2></div>
     </div>
-  </div>
-  <div id="board-table"></div>
-
-  <div class="section-head">
-    <div><span class="step" data-i18n="home.panel.eyebrow"></span><h2 class="mt0" data-i18n="home.panel.title"></h2></div>
-  </div>
-  <div class="grid cols-3">
-    <div class="card">
-      <h3 data-i18n="home.panel.wifi.t"></h3>
-      <ul class="small">
-        <li data-i18n="home.panel.wifi.1"></li>
-        <li data-i18n="home.panel.wifi.2"></li>
-        <li data-i18n="home.panel.wifi.3"></li>
-        <li data-i18n="home.panel.wifi.4"></li>
-        <li data-i18n="home.panel.wifi.5"></li>
-      </ul>
+    <div class="grid cols-3">
+      <div class="card feature-card">
+        <h3>Flash from the browser</h3>
+        <p class="small">Chrome, Edge, Opera or another Chromium browser on desktop, over HTTPS or localhost.</p>
+        <a class="btn small primary" href="install.html">Open the installer</a>
+      </div>
+      <div class="card feature-card">
+        <h3>Raspberry Pi</h3>
+        <p class="small">Write Raspberry Pi OS Lite, then run one command on the Pi:</p>
+        <div class="cmd-row">
+          <code id="pi-cmd">curl -fsSL https://raw.githubusercontent.com/ArsinShaabani/Printer_middleware/main/firmware/raspberrypi/install.sh | sudo bash</code>
+          <button class="btn small ghost" id="copy-pi">Copy</button>
+        </div>
+      </div>
+      <div class="card feature-card">
+        <h3>Build it yourself</h3>
+        <p class="small">arduino-cli, one build property per variant - the exact commands are on the docs page.</p>
+        <a class="btn small" href="docs.html#build">Build instructions</a>
+      </div>
     </div>
-    <div class="card">
-      <h3 data-i18n="home.panel.designer.t"></h3>
-      <ul class="small">
-        <li data-i18n="home.panel.designer.1"></li>
-        <li data-i18n="home.panel.designer.2"></li>
-        <li data-i18n="home.panel.designer.3"></li>
-        <li data-i18n="home.panel.designer.4"></li>
-        <li data-i18n="home.panel.designer.5"></li>
-      </ul>
-    </div>
-    <div class="card">
-      <h3 data-i18n="home.panel.maint.t"></h3>
-      <ul class="small">
-        <li data-i18n="home.panel.maint.1"></li>
-        <li data-i18n="home.panel.maint.2"></li>
-        <li data-i18n="home.panel.maint.3"></li>
-        <li data-i18n="home.panel.maint.4"></li>
-        <li data-i18n="home.panel.maint.5"></li>
-      </ul>
-    </div>
-  </div>
+  </section>
 
-  <div class="section-head">
-    <div><span class="step" data-i18n="home.extras.eyebrow"></span><h2 class="mt0" data-i18n="home.extras.title"></h2></div>
-  </div>
-  <div class="grid cols-3">
-    <div class="card"><h3 data-i18n="home.extras.ops.t"></h3><p class="small" data-i18n="home.extras.ops.d"></p></div>
-    <div class="card"><h3 data-i18n="home.extras.compat.t"></h3><p class="small" data-i18n="home.extras.compat.d"></p></div>
-    <div class="card"><h3 data-i18n="home.extras.fleet.t"></h3><p class="small" data-i18n="home.extras.fleet.d"></p></div>
-  </div>
-
-  <div class="callout info mt3">
-    <strong data-i18n="home.browser.t"></strong>
-    <span data-i18n="home.browser.d"></span>
-  </div>
+  <section class="landing-section">
+    <div class="section-head">
+      <div><span class="step">Enterprise ready</span><h2 class="mt0">Extras that make it deployable</h2></div>
+    </div>
+    <div class="grid cols-3">
+      <div class="card"><h3>Operations</h3><p class="small">OTA updates, configuration backup/restore, API keys, webhooks on job completion, job history, byte counters, live SSE status stream, remote reboot and factory reset.</p></div>
+      <div class="card"><h3>Compatibility</h3><p class="small">10 printer command languages, ESC/P for dot matrix and inkjets, CUPS + AirPrint on Raspberry Pi for printers that need a real driver.</p></div>
+      <div class="card"><h3>Fleet</h3><p class="small">mDNS discovery, predictable hostnames, one JSON config per device, identical REST API on ESP32, ESP8266 and Raspberry Pi.</p></div>
+    </div>
+    <div class="callout info mt3">
+      <strong>Browser support:</strong> flashing uses the Web Serial API, available in Chrome, Edge, Opera and other Chromium browsers on desktop (Windows, macOS, Linux, ChromeOS). Raspberry Pi images are written with Raspberry Pi Imager and then configured with a single command.
+    </div>
+  </section>
 </main>
 
 <div id="app-footer"></div>
