@@ -129,8 +129,13 @@ test('every catalog app, transport and family has a translation in both language
 test('the pages declare a Persian-capable font stack and RTL-safe layout', () => {
   const css = readFileSync(join(ROOT, 'assets/css/app.css'), 'utf8');
   assert.match(css, /--sans:[^;]*Vazirmatn/, 'the sans stack prefers Vazirmatn');
-  for (const page of PAGES) {
+  // The landing page is English only; every other page is bilingual and loads
+  // the Persian webfont.
+  for (const page of PAGES.filter((p) => p !== 'index.html')) {
     const html = readFileSync(join(ROOT, page), 'utf8');
     assert.match(html, /fonts\.googleapis\.com[^"]*Vazirmatn/, `${page} loads the Vazirmatn webfont`);
   }
+  const landing = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  assert.match(landing, /fonts\.googleapis\.com/, 'the landing page still loads its webfont');
+  assert.ok(!/data-i18n/.test(landing), 'the landing page is monolingual English (no i18n hooks)');
 });
